@@ -94,7 +94,15 @@ echo "Code synced via PR: $PR_URL"
 # If the private repo has a version tag, create a matching release on the public repo.
 # Pulls full release notes from the private repo and rewrites any private repo references.
 
+# Try package.json first, fall back to latest git tag
 VERSION=$(cd "$PRIVATE_REPO" && node -p "require('./package.json').version" 2>/dev/null || echo "")
+if [[ -z "$VERSION" ]]; then
+  # No package.json. Check for a version tag (v*) on HEAD
+  TAG=$(cd "$PRIVATE_REPO" && git tag --points-at HEAD 2>/dev/null | grep '^v' | head -1 || echo "")
+  if [[ -n "$TAG" ]]; then
+    VERSION="${TAG#v}"
+  fi
+fi
 if [[ -n "$VERSION" ]]; then
   TAG="v$VERSION"
   EXISTING=$(gh release view "$TAG" -R "$PUBLIC_REPO" --json tagName 2>/dev/null || echo "")

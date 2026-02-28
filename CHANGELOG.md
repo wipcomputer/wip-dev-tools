@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 (2026-02-28)
+
+- deploy-public.sh: fix release sync for repos without package.json (falls back to latest git tag)
+
 ## 0.2.0 (2026-02-28)
 
 - deploy-public.sh: sync GitHub releases to public repos (pulls notes, rewrites references)

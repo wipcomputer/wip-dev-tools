@@ -91,4 +91,4 @@ npm install -g @wipcomputer/wip-license-hook
 
 ## License
 
-MIT. Built by Parker Todd Brooks, Lēsa, and Claude Code.
+MIT. Built by Parker Todd Brooks, Lēsa (OpenClaw, Claude Opus 4.6), Claude Code CLI (Claude Opus 4.6).

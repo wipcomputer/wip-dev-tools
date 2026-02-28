@@ -234,11 +234,29 @@ git checkout main && git pull origin main
 # Step 3: release
 wip-release patch --notes="description of changes"
 
-# Step 4: deploy to public
+# Step 4: deploy to public (code sync + release)
 bash deploy-public.sh /path/to/private-repo <org>/<public-repo>
 ```
 
-The deploy script clones the public repo, rsyncs everything except `ai/` and `.git/`, creates a branch, commits with the latest private commit message, opens a PR, and merges it.
+The deploy script:
+1. Clones the public repo
+2. Rsyncs everything except `ai/` and `.git/`
+3. Creates a branch, commits, opens a PR, merges it
+4. Creates a matching GitHub release on the public repo (pulls notes from the private repo's release)
+
+**After deploy, the public repo should show:**
+- Updated code (matching private minus `ai/`)
+- A GitHub release with the version tag and release notes
+- npm package available via `npm install <package-name>`
+
+**What goes where:**
+
+| Artifact | Where it lives |
+|----------|---------------|
+| npm package | Public npm registry (anyone can install) |
+| GitHub release (private) | `<name>-private` repo (internal reference) |
+| GitHub release (public) | `<name>` repo (what users see) |
+| GitHub Packages | Not used (npm registry is the source of truth) |
 
 ### Config-specific splits
 

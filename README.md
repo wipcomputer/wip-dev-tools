@@ -103,9 +103,7 @@ All implementation source is committed in this repo. No closed binaries, no myst
 | deploy-public.sh | Shell | `guide/scripts/deploy-public.sh` | None. |
 | LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh` | None. Runnable standalone or via `.app` wrapper. |
 
-Standalone repos are also available with the same source:
-- [wipcomputer/wip-release](https://github.com/wipcomputer/wip-release)
-- [wipcomputer/wip-license-hook](https://github.com/wipcomputer/wip-license-hook)
+Both tools were previously in standalone repos, now merged here. The standalone repos redirect to this one.
 
 ### Private/Public Repo Pattern
 

@@ -78,6 +78,25 @@ Use `wip-license-hook` for license rug-pull detection:
 
 ## Git Conventions
 
+### Never Work on Main
+
+**Main is for merged, released code only.** Never make changes directly on main. Every repo should have a dev branch checked out as the working branch at all times.
+
+When you clone a repo or finish a PR, immediately create or switch to a dev branch:
+
+```bash
+git checkout -b <prefix>/dev           # new repo, first time
+git checkout <prefix>/<feature>        # existing feature work
+```
+
+If you find yourself on main with uncommitted changes, stash, branch, and apply:
+
+```bash
+git stash
+git checkout -b <prefix>/fix-name
+git stash pop
+```
+
 ### Branch Prefixes
 
 Name branches by agent/person and machine to prevent collisions:
@@ -172,12 +191,14 @@ Agent builds -> pushes to dev branch
 
 **The private repo is the working repo. The public repo is everything except `ai/`.**
 
+**You only need the private repo locally.** Clone `<name>-private`, work in it, release from it, deploy to public from it. Never clone the public repo for development. The public repo is a deployment target, not a working tree. The deploy script handles syncing.
+
 Every repo has an `ai/` folder where agents and humans collaborate ... plans, todos, dev updates, notes, conversations. This is the development process. It doesn't ship publicly.
 
 The private repo tracks everything, including `ai/`. The public repo is the same codebase without `ai/`. Two repos, same code, clean boundary.
 
 ```
-<name>-private/      <- working repo (all development happens here)
+<name>-private/      <- working repo (clone this one, work here)
   src/, README.md, LICENSE, package.json, SKILL.md ...
   ai/                <- plans, todos, notes, dev updates
     plan/
@@ -185,7 +206,7 @@ The private repo tracks everything, including `ai/`. The public repo is the same
     dev-updates/
     notes/
 
-<name>/              <- public repo (published from private)
+<name>/              <- public repo (deploy target only, never clone for dev)
   src/, README.md, LICENSE, package.json, SKILL.md ...
   (no ai/ folder)
 ```

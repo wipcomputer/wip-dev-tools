@@ -51,6 +51,18 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 - After merging, switch back to your dev branch. Don't sit on main.
 - Use scoped npm tokens for publishing, not personal credentials.
 
+### Release Quality Standards
+
+Every release must have:
+
+1. **Meaningful release notes.** Not just "Release v0.2.0". List what changed, why it matters, and how to install. wip-release generates this from commits automatically. Review it before publishing.
+2. **All three contributors.** Parker, Lesa, and Claude Code must all have authored at least one commit in the repo. GitHub tracks contributors by commit author, not co-author trailers. If a contributor is missing, make a real commit with `--author`.
+3. **Release on both repos.** The private repo gets the release from wip-release. The public repo gets a matching release from deploy-public.sh. Both must show the release in their GitHub Releases tab.
+4. **npm package published.** Available via `npm install <package-name>@<version>`. Verify after publishing.
+5. **CHANGELOG.md updated.** wip-release handles this, but verify it's accurate and complete.
+
+**After every release, verify all of these.** Check the public repo's GitHub page. Does it show the release? Does it show all three contributors? Are the release notes complete? Is the npm package available? If any of these are missing, fix it before moving on.
+
 ### Pre-Publish Checklist
 
 Before any repo goes public:

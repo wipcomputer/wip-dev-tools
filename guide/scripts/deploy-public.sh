@@ -88,6 +88,27 @@ echo "Merging PR..."
 PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
 gh pr merge "$PR_NUMBER" -R "$PUBLIC_REPO" --squash
 
-echo "Done. Public repo updated via PR."
+echo "Code synced via PR: $PR_URL"
+
+# ── Sync release to public repo ──
+# If the private repo has a version tag, create a matching release on the public repo.
+
+VERSION=$(cd "$PRIVATE_REPO" && node -p "require('./package.json').version" 2>/dev/null || echo "")
+if [[ -n "$VERSION" ]]; then
+  TAG="v$VERSION"
+  # Check if this tag already has a release on the public repo
+  EXISTING=$(gh release view "$TAG" -R "$PUBLIC_REPO" --json tagName 2>/dev/null || echo "")
+  if [[ -z "$EXISTING" ]]; then
+    # Get release notes from private repo's release (if it exists)
+    NOTES=$(gh release view "$TAG" -R "$(cd "$PRIVATE_REPO" && git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')" --json body -q '.body' 2>/dev/null || echo "Release $TAG")
+    echo "Creating release $TAG on $PUBLIC_REPO..."
+    gh release create "$TAG" -R "$PUBLIC_REPO" --title "$TAG" --notes "$NOTES" 2>/dev/null && echo "  ✓ Release $TAG created on $PUBLIC_REPO" || echo "  ✗ Release creation failed (non-fatal)"
+  else
+    echo "  Release $TAG already exists on $PUBLIC_REPO"
+  fi
+fi
+
+echo "Done. Public repo updated."
 echo "  PR: $PR_URL"
 echo "  Commit: $COMMIT_MSG (from $COMMIT_HASH)"
+[[ -n "${VERSION:-}" ]] && echo "  Release: v$VERSION"

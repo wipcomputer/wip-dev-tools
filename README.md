@@ -39,6 +39,34 @@ Private-to-public repo sync. Copies everything except `ai/` from your working re
 bash guide/scripts/deploy-public.sh /path/to/private-repo wipcomputer/public-repo
 ```
 
+### LDM Dev Tools.app
+
+macOS automation wrapper. A native `.app` bundle that runs scheduled jobs (backup, branch protection audit, etc.) with Full Disk Access. One app to grant permissions to, one place to add new automation.
+
+```bash
+# Run all jobs
+open -W ~/Applications/LDMDevTools.app --args all
+
+# Run a specific job
+open -W ~/Applications/LDMDevTools.app --args backup
+open -W ~/Applications/LDMDevTools.app --args branch-protect
+
+# List available jobs
+open -W ~/Applications/LDMDevTools.app --args list
+```
+
+Jobs live in `LDMDevTools.app/Contents/Resources/jobs/`. Add a new `.sh` file and it's automatically available.
+
+**Setup:** Drag `LDMDevTools.app` into System Settings > Privacy & Security > Full Disk Access. Then schedule via cron:
+
+```bash
+# Daily backup at midnight, branch protection audit at 1 AM
+0 0 * * * open -W ~/Applications/LDMDevTools.app --args backup >> /tmp/ldm-dev-tools/cron.log 2>&1
+0 1 * * * open -W ~/Applications/LDMDevTools.app --args branch-protect >> /tmp/ldm-dev-tools/cron.log 2>&1
+```
+
+Logs: `/tmp/ldm-dev-tools/`
+
 ## Dev Guide
 
 Best practices for AI-assisted development teams. Covers release process, repo structure, the `ai/` folder convention, branch protection, private/public repo patterns, and more.

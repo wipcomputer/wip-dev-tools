@@ -97,8 +97,8 @@ echo "Code synced via PR: $PR_URL"
 # Try package.json first, fall back to latest git tag
 VERSION=$(cd "$PRIVATE_REPO" && node -p "require('./package.json').version" 2>/dev/null || echo "")
 if [[ -z "$VERSION" ]]; then
-  # No package.json. Check for a version tag (v*) on HEAD
-  TAG=$(cd "$PRIVATE_REPO" && git tag --points-at HEAD 2>/dev/null | grep '^v' | head -1 || echo "")
+  # No package.json. Use the latest version tag (v*) in the repo
+  TAG=$(cd "$PRIVATE_REPO" && git tag -l 'v*' --sort=-version:refname 2>/dev/null | head -1 || echo "")
   if [[ -n "$TAG" ]]; then
     VERSION="${TAG#v}"
   fi

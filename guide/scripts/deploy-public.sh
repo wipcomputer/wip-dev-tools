@@ -80,6 +80,7 @@ git push -u origin "$BRANCH"
 
 echo "Creating PR..."
 PR_URL=$(gh pr create -R "$PUBLIC_REPO" \
+  --head "$BRANCH" \
   --title "$COMMIT_MSG" \
   --body "Synced from private repo (commit $COMMIT_HASH).")
 

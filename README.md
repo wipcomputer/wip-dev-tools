@@ -18,6 +18,8 @@ One-command release pipeline. Version bump, changelog, SKILL.md sync, npm publis
 wip-release patch --notes="fix: offline detection"
 ```
 
+**Source:** Pure JavaScript, no build step. [`tools/wip-release/cli.js`](tools/wip-release/cli.js) (entry point), [`tools/wip-release/core.mjs`](tools/wip-release/core.mjs) (main logic). Zero dependencies.
+
 [README](tools/wip-release/README.md) ... [SKILL.md](tools/wip-release/SKILL.md) ... [Reference](tools/wip-release/REFERENCE.md)
 
 ### wip-license-hook
@@ -29,11 +31,23 @@ wip-license-hook scan
 wip-license-hook audit
 ```
 
+**Source:** TypeScript. All source in [`tools/wip-license-hook/src/`](tools/wip-license-hook/src/):
+
+| File | What it does |
+|------|-------------|
+| `src/cli/index.ts` | CLI entry point |
+| `src/core/scanner.ts` | Dependency scanning (npm, pip, cargo, go, forks) |
+| `src/core/detector.ts` | License text fingerprinting |
+| `src/core/ledger.ts` | Ledger persistence and snapshots |
+| `src/core/reporter.ts` | Reporting and dashboard HTML generation |
+
 [README](tools/wip-license-hook/README.md) ... [SKILL.md](tools/wip-license-hook/SKILL.md)
 
 ### deploy-public.sh
 
 Private-to-public repo sync. Copies everything except `ai/` from your working repo to the public mirror. Creates a PR, merges it. One script for all repos.
+
+**Source:** Plain shell. [`guide/scripts/deploy-public.sh`](guide/scripts/deploy-public.sh)
 
 ```bash
 bash guide/scripts/deploy-public.sh /path/to/private-repo wipcomputer/public-repo
@@ -66,6 +80,45 @@ Jobs live in `LDMDevTools.app/Contents/Resources/jobs/`. Add a new `.sh` file an
 ```
 
 Logs: `/tmp/ldm-dev-tools/`
+
+## Source Code
+
+All implementation source is committed in this repo. No closed binaries, no mystery boxes.
+
+| Tool | Language | Source location | Build step? |
+|------|----------|----------------|-------------|
+| wip-release | JavaScript (ESM) | `tools/wip-release/cli.js`, `core.mjs` | None. What you see is what runs. |
+| wip-license-hook | TypeScript | `tools/wip-license-hook/src/**/*.ts` | `cd tools/wip-license-hook && npm install && npm run build` |
+| deploy-public.sh | Shell | `guide/scripts/deploy-public.sh` | None. |
+| LDM Dev Tools.app | Shell (jobs) | Jobs inside `.app` bundle at `Contents/Resources/jobs/*.sh` | None. |
+
+Standalone repos are also available with the same source:
+- [wipcomputer/wip-release](https://github.com/wipcomputer/wip-release)
+- [wipcomputer/wip-license-hook](https://github.com/wipcomputer/wip-license-hook)
+
+### Private/Public Repo Pattern
+
+Development happens in private repos (with `ai/` folders for internal notes, plans, dev updates). When publishing, `deploy-public.sh` syncs everything except `ai/` to the public repo. Source files are always committed. Compiled output (`dist/`) is gitignored and only published to npm.
+
+## Development
+
+### wip-license-hook (TypeScript)
+
+```bash
+cd tools/wip-license-hook
+npm install
+npm run build          # compiles src/ -> dist/
+node dist/cli/index.js scan   # test locally
+```
+
+### wip-release (JavaScript)
+
+No build step needed. Edit `cli.js` or `core.mjs` and test directly:
+
+```bash
+cd tools/wip-release
+node cli.js --dry-run patch --notes="test"
+```
 
 ## Dev Guide
 

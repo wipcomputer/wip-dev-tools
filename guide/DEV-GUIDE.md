@@ -246,6 +246,70 @@ Some repos also have deployment config that shouldn't be public (real paths, con
 
 **Key rule:** never put real paths, contacts, personal notes, or deployment values in the public repo.
 
+## Scheduled Automation (.app Pattern)
+
+macOS restricts cron and shell scripts from accessing protected files (Full Disk Access). The workaround: wrap automation in a native `.app` bundle and grant FDA to the app.
+
+### How it works
+
+`LDMDevTools.app` is a minimal macOS application that:
+1. Contains a compiled Mach-O binary (so macOS recognizes it as a real app)
+2. The binary calls a shell script that dispatches to individual job scripts
+3. Jobs live in `LDMDevTools.app/Contents/Resources/jobs/*.sh`
+4. Adding a new job = dropping a new `.sh` file in that folder
+
+### Structure
+
+```
+~/Applications/LDMDevTools.app/
+  Contents/
+    Info.plist                    ... app metadata (bundle ID, version)
+    MacOS/
+      ldm-dev-tools               ... compiled binary (Mach-O, calls ldm-dev-tools-run)
+      ldm-dev-tools-run           ... shell dispatcher (routes to jobs)
+    Resources/
+      jobs/
+        backup.sh                 ... daily backup of databases + state
+        branch-protect.sh         ... audit + enforce branch protection across org
+```
+
+### Setup
+
+1. Build the app (or copy from dev-tools repo)
+2. Drag `LDMDevTools.app` into **System Settings > Privacy & Security > Full Disk Access**
+3. Schedule via cron:
+
+```bash
+0 0 * * * open -W ~/Applications/LDMDevTools.app --args backup >> /tmp/ldm-dev-tools/cron.log 2>&1
+0 1 * * * open -W ~/Applications/LDMDevTools.app --args branch-protect >> /tmp/ldm-dev-tools/cron.log 2>&1
+```
+
+### Why not LaunchAgents?
+
+LaunchAgents have been unreliable across macOS updates. FDA grants to `/bin/bash` and `cron` don't persist. The `.app` bundle is the one thing macOS consistently respects for FDA permissions.
+
+### Adding a new job
+
+Create a file in `Contents/Resources/jobs/`:
+
+```bash
+# ~/Applications/LDMDevTools.app/Contents/Resources/jobs/my-job.sh
+#!/bin/bash
+echo "=== My job: $(date) ==="
+# ... your automation here
+echo "=== Done ==="
+```
+
+Then: `open -W ~/Applications/LDMDevTools.app --args my-job`
+
+### Logs
+
+All job output goes to `/tmp/ldm-dev-tools/`:
+- `ldm-dev-tools.log` ... dispatcher log (which jobs ran, exit codes)
+- `<job-name>.log` ... individual job output
+- `<job-name>-last-exit` ... last exit code (for monitoring)
+- `<job-name>-last-run` ... last run timestamp
+
 ## The _trash Convention
 
 **Never rm or delete files.** Always move to a `_trash/` folder. Applies everywhere: repos, agent data, extension installs. Makes recovery trivial without git archaeology.

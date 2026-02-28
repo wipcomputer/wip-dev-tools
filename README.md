@@ -57,19 +57,26 @@ bash guide/scripts/deploy-public.sh /path/to/private-repo wipcomputer/public-rep
 
 macOS automation wrapper. A native `.app` bundle that runs scheduled jobs (backup, branch protection audit, etc.) with Full Disk Access. One app to grant permissions to, one place to add new automation.
 
-```bash
-# Run all jobs
-open -W ~/Applications/LDMDevTools.app --args all
+**Source:** Job scripts are plain shell, committed at [`tools/ldm-jobs/`](tools/ldm-jobs/):
 
-# Run a specific job
+| Script | What it does |
+|--------|-------------|
+| [`backup.sh`](tools/ldm-jobs/backup.sh) | Daily backup |
+| [`branch-protect.sh`](tools/ldm-jobs/branch-protect.sh) | Audit and enforce branch protection across all org repos |
+
+Scripts can be run standalone without the `.app`. The app provides a Full Disk Access wrapper for scripts that need it.
+
+```bash
+# Run standalone
+bash tools/ldm-jobs/backup.sh
+bash tools/ldm-jobs/branch-protect.sh
+
+# Or via the app wrapper
 open -W ~/Applications/LDMDevTools.app --args backup
 open -W ~/Applications/LDMDevTools.app --args branch-protect
-
-# List available jobs
-open -W ~/Applications/LDMDevTools.app --args list
 ```
 
-Jobs live in `LDMDevTools.app/Contents/Resources/jobs/`. Add a new `.sh` file and it's automatically available.
+[README](tools/ldm-jobs/README.md)
 
 **Setup:** Drag `LDMDevTools.app` into System Settings > Privacy & Security > Full Disk Access. Then schedule via cron:
 
@@ -90,7 +97,7 @@ All implementation source is committed in this repo. No closed binaries, no myst
 | wip-release | JavaScript (ESM) | `tools/wip-release/cli.js`, `core.mjs` | None. What you see is what runs. |
 | wip-license-hook | TypeScript | `tools/wip-license-hook/src/**/*.ts` | `cd tools/wip-license-hook && npm install && npm run build` |
 | deploy-public.sh | Shell | `guide/scripts/deploy-public.sh` | None. |
-| LDM Dev Tools.app | Shell (jobs) | Jobs inside `.app` bundle at `Contents/Resources/jobs/*.sh` | None. |
+| LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh` | None. Runnable standalone or via `.app` wrapper. |
 
 Standalone repos are also available with the same source:
 - [wipcomputer/wip-release](https://github.com/wipcomputer/wip-release)

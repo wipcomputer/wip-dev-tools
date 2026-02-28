@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0 (2026-02-28)
+
+- Production release: all tools battle-tested across 100+ repos, 200+ releases
+- All source code visible and auditable in repo (no closed binaries)
+- wip-license-hook bumped to v1.0.0
+- LDM Dev Tools.app job scripts extracted to tools/ldm-jobs/
+- Real-world example: wip-universal-installer release history
+- Source code table, build instructions, and dev guide in README
+- Standalone repos (wip-release, wip-license-hook) merged into umbrella
+
 ## 0.2.1 (2026-02-28)
 
 - deploy-public.sh: fix release sync for repos without package.json (falls back to latest git tag)

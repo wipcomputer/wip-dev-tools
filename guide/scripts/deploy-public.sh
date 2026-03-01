@@ -69,7 +69,7 @@ if git diff --quiet HEAD -- 2>/dev/null && git diff --cached --quiet HEAD -- 2>/
   exit 0
 fi
 
-BRANCH="mini/deploy-$(date +%Y%m%d-%H%M%S)"
+BRANCH="cc-mini/deploy-$(date +%Y%m%d-%H%M%S)"
 
 git checkout -b "$BRANCH"
 git add -A

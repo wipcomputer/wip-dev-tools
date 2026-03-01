@@ -69,7 +69,16 @@ if git diff --quiet HEAD -- 2>/dev/null && git diff --cached --quiet HEAD -- 2>/
   exit 0
 fi
 
-BRANCH="cc-mini/deploy-$(date +%Y%m%d-%H%M%S)"
+# Harness ID for branch prefix. Set HARNESS_ID env var, or auto-detect from private repo path.
+if [[ -z "${HARNESS_ID:-}" ]]; then
+  case "$PRIVATE_REPO" in
+    *"Claude Code - Mini"*) HARNESS_ID="cc-mini" ;;
+    *"Claude Code - MBA"*)  HARNESS_ID="cc-air" ;;
+    *"Lēsa"*)               HARNESS_ID="oc-lesa-mini" ;;
+    *)                       HARNESS_ID="deploy" ;;
+  esac
+fi
+BRANCH="$HARNESS_ID/deploy-$(date +%Y%m%d-%H%M%S)"
 
 git checkout -b "$BRANCH"
 git add -A

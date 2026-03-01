@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 (2026-02-28)
+
+- deploy-public.sh: auto-detect harness ID from private repo path (cc-mini/, cc-air/, oc-lesa-mini/)
+
 ## 1.0.2 (2026-02-28)
 
 - deploy-public.sh: fix branch prefix from mini/ to cc-mini/ per harness naming convention

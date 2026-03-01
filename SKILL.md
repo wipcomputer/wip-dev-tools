@@ -1,7 +1,7 @@
 ---
 name: WIP Dev Tools
-version: 1.0.4
-description: Dev toolkit for AI-assisted software development. Release pipeline, license compliance, repo management, and best practices.
+version: 1.1.2
+description: Dev toolkit for AI-assisted software development. Release pipeline, license compliance, repo visibility guard, and best practices.
 category: dev-tools
 capabilities:
   - version-bump
@@ -11,6 +11,7 @@ capabilities:
   - license-scanning
   - license-compliance
   - repo-sync
+  - repo-visibility-guard
 interface: CLI
 requires:
   binaries: [git, npm, gh, node]
@@ -35,6 +36,12 @@ License rug-pull detection. Scans dependencies and forks for license changes. Gi
 Install: `npm install -g @wipcomputer/wip-license-hook`
 Usage: `wip-license-hook scan`
 Docs: [README](tools/wip-license-hook/README.md)
+
+### wip-repo-permissions-hook
+Repo visibility guard. Blocks repos from going public without a `-private` counterpart. CLI, Claude Code hook, OpenClaw plugin.
+
+Usage: `wip-repo-permissions check <org/repo>` or `wip-repo-permissions audit <org>`
+Docs: [README](tools/wip-repo-permissions-hook/README.md)
 
 ### deploy-public.sh
 Private-to-public repo sync. Excludes `ai/` folder. Creates PR and merges.

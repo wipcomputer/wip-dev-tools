@@ -269,6 +269,8 @@ Agent builds -> pushes to dev branch
 
 ### The Rule
 
+**Never make a repo public unless it has a `-private` counterpart with all `ai/` content separated out.** If a repo doesn't have a `-private` counterpart yet, it stays private until one is created. No exceptions. Violating this exposes internal plans, todos, and development context.
+
 **The private repo is the working repo. The public repo is everything except `ai/`.**
 
 **You only need the private repo locally.** Clone `<name>-private`, work in it, release from it, deploy to public from it. Never clone the public repo for development. The public repo is a deployment target, not a working tree. The deploy script handles syncing.

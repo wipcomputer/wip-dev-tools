@@ -188,17 +188,57 @@ ai/
   plan/              ... architecture plans, roadmaps, convention notes
   dev-updates/       ... what was built, session logs
   todos/
-    README.md        ... explains the inbox system
-    PUNCHLIST.md     ... blockers to ship (single file, current state)
-    inboxes/
-      person-a/      ... action items for person A
-      agent-a/       ... action items for agent A
+    Parker-todo.md   ... Parker's action items
+    CC-Mini-todo.md  ... CC-Mini's action items
+    OC-Lesa-Mini-todo.md  ... OC-Lesa-Mini's action items
   notes/             ... research, raw conversation logs, references
 ```
 
-**Inboxes:** Each folder under `inboxes/` is a recipient. Drop a dated markdown file in their inbox when you have action items for them. Naming: `YYYY-MM-DD--{from-agent}--{short-description}.md`. Don't edit someone else's items. Check boxes when done. Don't delete completed files.
+### Todo Files
 
-**Punchlist:** Single file at `todos/PUNCHLIST.md`. Current blockers to ship. Updated in place (not per-date). Quick glance at what's blocking the next release.
+One file per person/agent. Named `{Name}-todo.md`. Lives in `ai/todos/`.
+
+**Three sections, always in this order:**
+
+```markdown
+# {Name} ... {Project} To-Do
+
+**Updated:** YYYY-MM-DD
+
+---
+
+## To Do
+- [ ] Thing that needs doing
+- [ ] Another thing
+
+---
+
+## Done
+- [x] Thing that was completed ... YYYY-MM-DD
+
+---
+
+## Deprecated
+- ~~Thing that's no longer needed~~ ... reason. (YYYY-MM-DD)
+```
+
+**Rules:**
+- **Never delete anything.** Items move between sections, never off the page.
+- **To Do** ... work that needs to happen.
+- **Done** ... work that was completed. Check the box, add the date.
+- **Deprecated** ... work that was planned but is no longer needed (code changed, approach changed, requirement dropped). Strikethrough the text, add the reason and date. This is NOT the same as Done. Deprecated means "we decided not to do this."
+- **Update the date** at the top of the file every time you edit it.
+- Each person/agent has exactly one file. Don't create per-date or per-feature todo files.
+
+**Our todo files:**
+
+| File | Who |
+|------|-----|
+| `Parker-todo.md` | Parker (human tasks, setup, deploy, review) |
+| `CC-Mini-todo.md` | Claude Code on Mac Mini (code, docs, builds) |
+| `OC-Lesa-Mini-todo.md` | OpenClaw Lesa on Mac Mini (agent tasks, testing) |
+
+Add more as harnesses are added (e.g., `CC-Air-todo.md` for the MacBook Air).
 
 ## Branch Protection
 

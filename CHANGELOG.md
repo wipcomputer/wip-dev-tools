@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4 (2026-03-01)
+
+- DEV-GUIDE: replace inbox/punchlist system with per-agent todo files (To Do, Done, Deprecated. Never delete.)
+
 ## 1.0.3 (2026-02-28)
 
 - deploy-public.sh: auto-detect harness ID from private repo path (cc-mini/, cc-air/, oc-lesa-mini/)

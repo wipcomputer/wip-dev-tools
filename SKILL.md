@@ -1,6 +1,6 @@
 ---
 name: WIP Dev Tools
-version: 1.0.0
+version: 1.0.1
 description: Dev toolkit for AI-assisted software development. Release pipeline, license compliance, repo management, and best practices.
 category: dev-tools
 capabilities:

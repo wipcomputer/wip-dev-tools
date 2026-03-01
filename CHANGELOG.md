@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 (2026-02-28)
+
+- DEV-GUIDE: add multi-agent clone workflow and harness branch convention (cc-mini/, cc-air/, lesa-mini/)
+
 ## 1.0.0 (2026-02-28)
 
 - Production release: all tools battle-tested across 100+ repos, 200+ releases

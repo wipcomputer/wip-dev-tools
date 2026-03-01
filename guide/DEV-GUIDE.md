@@ -111,14 +111,42 @@ git stash pop
 
 ### Branch Prefixes
 
-Name branches by agent/person and machine to prevent collisions:
+Branch names use the **harness name** (agent + machine) as the prefix. Every harness is a distinct entity. Claude Code on the Mini is not the same as Claude Code on the Air.
 
 ```
-<agent>/<feature>
-<machine>/<feature>
+<harness>/<feature>
 ```
 
-Examples: `cc-mini/fix-search`, `air/add-relay`, `lesa/weekly-tuning`
+Examples: `cc-mini/fix-search`, `cc-air/add-relay`, `lesa-mini/weekly-tuning`
+
+### Multi-Agent Clone Workflow
+
+**Every harness gets their own clone of every repo.** This prevents checkout collisions when multiple agents work on the same repo at the same time.
+
+```
+staff/
+  Parker/
+    Claude Code - Mini/repos/
+      memory-crystal-private/     <- cc-mini works here, cc-mini/ branches
+    Claude Code - MBA/repos/
+      memory-crystal-private/     <- cc-air works here, cc-air/ branches
+  Lēsa/
+    repos/
+      memory-crystal-private/     <- lesa-mini works here, lesa-mini/ branches
+```
+
+**Rules:**
+- Never work in another agent's folder. If Lesa originated a repo, CC still clones it to their own folder.
+- Each harness uses their own branch prefix (`cc-mini/`, `cc-air/`, `lesa-mini/`).
+- PRs merge to `main` on GitHub. That's the shared integration point.
+- If something needs to change in another agent's working tree, open a PR or ask them.
+
+**When a new repo is created:**
+1. Whoever creates it pushes to GitHub (wipcomputer org)
+2. Every other agent clones it to their own repos folder
+3. Each agent creates their dev branch with their prefix
+
+This is how we avoid the "two agents have different branches checked out in the same folder" problem. It doesn't work. Separate folders, separate clones, shared remote.
 
 ### Commit Messages
 

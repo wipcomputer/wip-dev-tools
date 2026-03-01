@@ -47,6 +47,24 @@ wip-license-hook audit
 
 [README](tools/wip-license-hook/README.md) ... [SKILL.md](tools/wip-license-hook/SKILL.md)
 
+### wip-repo-permissions-hook
+
+Repo visibility guard. Blocks repos from going public without a `-private` counterpart. Works as a CLI, Claude Code hook, and OpenClaw plugin. Catches accidental exposure of internal plans, todos, and development context.
+
+```bash
+# Check a single repo
+wip-repo-permissions check wipcomputer/memory-crystal
+# -> OK: memory-crystal-private exists
+
+# Audit all public repos in org
+wip-repo-permissions audit wipcomputer
+# -> Lists violations, exit code 1 if any found
+```
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-repo-permissions-hook/core.mjs`](tools/wip-repo-permissions-hook/core.mjs) (logic), [`tools/wip-repo-permissions-hook/cli.js`](tools/wip-repo-permissions-hook/cli.js) (CLI), [`tools/wip-repo-permissions-hook/guard.mjs`](tools/wip-repo-permissions-hook/guard.mjs) (Claude Code hook). Zero dependencies.
+
+[README](tools/wip-repo-permissions-hook/README.md) ... [SKILL.md](tools/wip-repo-permissions-hook/SKILL.md)
+
 ### deploy-public.sh
 
 Private-to-public repo sync. Copies everything except `ai/` from your working repo to the public mirror. Creates a PR, merges it. One script for all repos.
@@ -67,6 +85,7 @@ macOS automation wrapper. A native `.app` bundle that runs scheduled jobs (backu
 |--------|-------------|
 | [`backup.sh`](tools/ldm-jobs/backup.sh) | Daily backup |
 | [`branch-protect.sh`](tools/ldm-jobs/branch-protect.sh) | Audit and enforce branch protection across all org repos |
+| [`visibility-audit.sh`](tools/ldm-jobs/visibility-audit.sh) | Audit public repos for missing -private counterparts |
 
 Scripts can be run standalone without the `.app`. The app provides a Full Disk Access wrapper for scripts that need it.
 
@@ -74,10 +93,12 @@ Scripts can be run standalone without the `.app`. The app provides a Full Disk A
 # Run standalone
 bash tools/ldm-jobs/backup.sh
 bash tools/ldm-jobs/branch-protect.sh
+bash tools/ldm-jobs/visibility-audit.sh
 
 # Or via the app wrapper
 open -W ~/Applications/LDMDevTools.app --args backup
 open -W ~/Applications/LDMDevTools.app --args branch-protect
+open -W ~/Applications/LDMDevTools.app --args visibility-audit
 ```
 
 [README](tools/ldm-jobs/README.md)
@@ -85,9 +106,10 @@ open -W ~/Applications/LDMDevTools.app --args branch-protect
 **Setup:** Drag `LDMDevTools.app` into System Settings > Privacy & Security > Full Disk Access. Then schedule via cron:
 
 ```bash
-# Daily backup at midnight, branch protection audit at 1 AM
+# Daily backup at midnight, branch protection audit at 1 AM, visibility audit at 2 AM
 0 0 * * * open -W ~/Applications/LDMDevTools.app --args backup >> /tmp/ldm-dev-tools/cron.log 2>&1
 0 1 * * * open -W ~/Applications/LDMDevTools.app --args branch-protect >> /tmp/ldm-dev-tools/cron.log 2>&1
+0 2 * * * open -W ~/Applications/LDMDevTools.app --args visibility-audit >> /tmp/ldm-dev-tools/cron.log 2>&1
 ```
 
 Logs: `/tmp/ldm-dev-tools/`
@@ -100,8 +122,9 @@ All implementation source is committed in this repo. No closed binaries, no myst
 |------|----------|----------------|-------------|
 | wip-release | JavaScript (ESM) | `tools/wip-release/cli.js`, `core.mjs` | None. What you see is what runs. |
 | wip-license-hook | TypeScript | `tools/wip-license-hook/src/**/*.ts` | `cd tools/wip-license-hook && npm install && npm run build` |
+| wip-repo-permissions-hook | JavaScript (ESM) | `tools/wip-repo-permissions-hook/core.mjs`, `cli.js`, `guard.mjs` | None. What you see is what runs. |
 | deploy-public.sh | Shell | `guide/scripts/deploy-public.sh` | None. |
-| LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh` | None. Runnable standalone or via `.app` wrapper. |
+| LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh`, `visibility-audit.sh` | None. Runnable standalone or via `.app` wrapper. |
 
 Both tools were previously in standalone repos, now merged here. The standalone repos redirect to this one.
 

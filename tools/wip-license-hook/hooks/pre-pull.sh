@@ -15,12 +15,12 @@ if command -v wip-license-hook &>/dev/null; then
 elif [ -f "$REPO_ROOT/node_modules/.bin/wip-license-hook" ]; then
   HOOK_CMD="$REPO_ROOT/node_modules/.bin/wip-license-hook"
 elif command -v npx &>/dev/null; then
-  HOOK_CMD="npx @wipcomputer/license-hook"
+  HOOK_CMD="npx @wipcomputer/wip-license-hook"
 else
   echo ""
   echo "╔══════════════════════════════════════════════════╗"
   echo "║  ⚠️  wip-license-hook not found                  ║"
-  echo "║  Install: npm i -g @wipcomputer/license-hook     ║"
+  echo "║  Install: npm i -g @wipcomputer/wip-license-hook ║"
   echo "║  Pull proceeding WITHOUT license check.          ║"
   echo "╚══════════════════════════════════════════════════╝"
   echo ""

@@ -15,7 +15,7 @@ if command -v wip-license-hook &>/dev/null; then
 elif [ -f "$REPO_ROOT/node_modules/.bin/wip-license-hook" ]; then
   HOOK_CMD="$REPO_ROOT/node_modules/.bin/wip-license-hook"
 elif command -v npx &>/dev/null; then
-  HOOK_CMD="npx @wipcomputer/license-hook"
+  HOOK_CMD="npx @wipcomputer/wip-license-hook"
 else
   # No tool available — push proceeds silently
   exit 0

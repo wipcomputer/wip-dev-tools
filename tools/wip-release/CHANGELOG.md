@@ -3,9 +3,6 @@
 
 
 
-
-
-
 ## 1.2.4 (2026-02-21)
 
 Align description across all sources

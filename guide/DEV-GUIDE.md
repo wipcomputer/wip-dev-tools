@@ -371,6 +371,7 @@ macOS restricts cron and shell scripts from accessing protected files (Full Disk
       jobs/
         backup.sh                 ... daily backup of databases + state
         branch-protect.sh         ... audit + enforce branch protection across org
+        visibility-audit.sh       ... audit public repos for missing -private counterparts
 ```
 
 ### Setup

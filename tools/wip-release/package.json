@@ -12,7 +12,7 @@
     "./cli": "./cli.js"
   },
   "scripts": {
-    "test": "node cli.mjs --help"
+    "test": "node cli.js --help"
   },
   "keywords": [
     "release",

@@ -1,0 +1,28 @@
+{
+  "name": "@wipcomputer/wip-repo-permissions-hook",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Repo visibility guard. Blocks repos from going public without a -private counterpart.",
+  "main": "core.mjs",
+  "bin": {
+    "wip-repo-permissions": "./cli.js"
+  },
+  "scripts": {
+    "test": "bash test.sh"
+  },
+  "keywords": [
+    "claude-code",
+    "openclaw",
+    "hook",
+    "repo-guard",
+    "visibility",
+    "ai-safety",
+    "pretooluse"
+  ],
+  "author": "Parker Todd Brooks",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wipcomputer/wip-dev-tools.git"
+  }
+}

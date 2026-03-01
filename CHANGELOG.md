@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.2 (2026-03-01)
+
+- SKILL.md: sync version to 1.1.2
+- CHANGELOG: add missing v1.1.0 and v1.1.1 entries
+- ldm-jobs README: add visibility-audit.sh documentation
+
+## 1.1.1 (2026-03-01)
+
+- README: add wip-repo-permissions-hook section, source code table entry, cron schedule
+- SKILL.md: bump version, add repo-visibility-guard capability, add tool section
+
+## 1.1.0 (2026-03-01)
+
+- New tool: wip-repo-permissions-hook. Blocks repos from going public without a -private counterpart
+- Surfaces: CLI (check, audit, can-publish), Claude Code PreToolUse hook, OpenClaw plugin
+- New cron job: visibility-audit.sh for LDM Dev Tools.app
+- DEV-GUIDE: add hard rule for public/private repo pattern
+
 ## 1.0.4 (2026-03-01)
 
 - DEV-GUIDE: replace inbox/punchlist system with per-agent todo files (To Do, Done, Deprecated. Never delete.)

@@ -39,7 +39,7 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 2. Make changes, commit
 3. Push branch:            git push -u origin <prefix>/<feature>
 4. Create PR:              gh pr create --title "..." --body "..."
-5. Merge PR:               gh pr merge <number> --squash
+5. Merge PR:               gh pr merge <number> --merge
 6. Pull merged main:       git checkout main && git pull origin main
 7. Release:                wip-release patch --notes="description"
                            # or: wip-release minor / wip-release major
@@ -48,18 +48,40 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 
 **Important:**
 - **Every change goes through a PR.** No direct pushes to main. Not even "just a README fix." Branch, PR, merge. Every time.
+- **Never squash merge.** Every commit has co-authors and tells the story of how something was built. Squashing destroys attribution and history. Always use `--merge` or fast-forward. This applies to `gh pr merge`, manual merges, deploy-public.sh, and any other merge path. No exceptions.
 - After merging, switch back to your dev branch. Don't sit on main.
 - Use scoped npm tokens for publishing, not personal credentials.
 
 ### Release Quality Standards
 
-Every release must have:
+**Every release must have exhaustive, categorized notes.** People use our software. Sloppy notes are embarrassing. Look at [OpenClaw releases](https://github.com/openclaw/openclaw/releases) as the benchmark.
 
-1. **Meaningful release notes.** Not just "Release v0.2.0". List what changed, why it matters, and how to install. wip-release generates this from commits automatically. Review it before publishing.
-2. **All three contributors.** Parker, Lesa, and Claude Code must all have authored at least one commit in the repo. GitHub tracks contributors by commit author, not co-author trailers. If a contributor is missing, make a real commit with `--author`.
-3. **Release on both repos.** The private repo gets the release from wip-release. The public repo gets a matching release from deploy-public.sh. Both must show the release in their GitHub Releases tab.
-4. **npm package published.** Available via `npm install <package-name>@<version>`. Verify after publishing.
-5. **CHANGELOG.md updated.** wip-release handles this, but verify it's accurate and complete.
+`wip-release` generates structured notes automatically:
+
+1. **Changes** ... new features, refactors, additions. One bullet per commit with hash.
+2. **Fixes** ... bug fixes, hotfixes. One bullet per commit with hash.
+3. **Docs** ... README, TECHNICAL, RELAY, any documentation changes.
+4. **Files changed** ... diffstat (excludes `ai/` folder).
+5. **Install** ... npm install command + git pull.
+6. **Attribution** ... Built-by line.
+7. **Full changelog** ... GitHub compare URL.
+
+The `--notes` flag provides the summary paragraph at the top. The tool builds everything else from git history.
+
+**For major releases (minor/major bumps):** the auto-generated notes are a starting point. Always review and expand them. Add context, describe architectural changes, explain why things changed. A commit subject like "Add cc-poller.ts" should become a paragraph explaining what the poller does, why it replaces the old hook, and what problem it solves.
+
+**For patch releases:** auto-generated notes are usually sufficient. Review before publishing.
+
+**Never publish a release with just a one-liner.** If two days of work went into it, the release notes should reflect that.
+
+#### Release Checklist
+
+Every release must also have:
+
+1. **All three contributors.** Parker, Lesa, and Claude Code must all have authored at least one commit in the repo. GitHub tracks contributors by commit author, not co-author trailers. If a contributor is missing, make a real commit with `--author`.
+2. **Release on both repos.** The private repo gets the release from wip-release. The public repo gets a matching release from deploy-public.sh. Both must show the release in their GitHub Releases tab.
+3. **npm package published.** Available via `npm install <package-name>@<version>`. Verify after publishing.
+4. **CHANGELOG.md updated.** wip-release handles this, but verify it's accurate and complete.
 
 **After every release, verify all of these.** Check the public repo's GitHub page. Does it show the release? Does it show all three contributors? Are the release notes complete? Is the npm package available? If any of these are missing, fix it before moving on.
 

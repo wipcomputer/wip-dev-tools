@@ -134,47 +134,119 @@ export function publishGitHubPackages(repoPath) {
 }
 
 /**
- * Build detailed release notes from git history and repo metadata.
+ * Categorize a commit message into a section.
+ * Returns: 'changes', 'fixes', 'docs', 'internal'
+ */
+function categorizeCommit(subject) {
+  const lower = subject.toLowerCase();
+
+  // Fixes
+  if (lower.startsWith('fix') || lower.startsWith('hotfix') || lower.startsWith('bugfix') ||
+      lower.includes('fix:') || lower.includes('bug:')) {
+    return 'fixes';
+  }
+
+  // Docs
+  if (lower.startsWith('doc') || lower.startsWith('readme') ||
+      lower.includes('docs:') || lower.includes('doc:') ||
+      lower.startsWith('update readme') || lower.startsWith('rewrite readme') ||
+      lower.startsWith('update technical') || lower.startsWith('rewrite relay') ||
+      lower.startsWith('update relay')) {
+    return 'docs';
+  }
+
+  // Internal (skip in release notes)
+  if (lower.startsWith('chore') || lower.startsWith('auto-commit') ||
+      lower.startsWith('merge pull request') || lower.startsWith('merge branch') ||
+      lower.match(/^v\d+\.\d+\.\d+/) || lower.startsWith('mark ') ||
+      lower.startsWith('clean up todo') || lower.startsWith('keep ')) {
+    return 'internal';
+  }
+
+  // Everything else is a change
+  return 'changes';
+}
+
+/**
+ * Build detailed, categorized release notes from git history and repo metadata.
+ *
+ * Produces structured notes with Changes, Fixes, Docs sections.
+ * Each commit is categorized by its message prefix.
+ * ai/ files are excluded from the files-changed stats.
  */
 export function buildReleaseNotes(repoPath, currentVersion, newVersion, notes) {
   const slug = detectRepoSlug(repoPath);
   const pkg = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
   const lines = [];
 
-  // What changed section
-  lines.push('## What changed\n');
+  // Summary
   if (notes) {
     lines.push(notes);
     lines.push('');
   }
 
-  // Commits since last tag
+  // Gather commits since last tag
   const prevTag = `v${currentVersion}`;
-  let commits = '';
+  let rawCommits = [];
   try {
-    commits = execFileSync('git', [
-      'log', `${prevTag}..HEAD`, '--pretty=format:- %s (%h)'
+    const raw = execFileSync('git', [
+      'log', `${prevTag}..HEAD`, '--pretty=format:%h\t%s'
     ], { cwd: repoPath, encoding: 'utf8' }).trim();
+    if (raw) rawCommits = raw.split('\n').map(line => {
+      const [hash, ...rest] = line.split('\t');
+      return { hash, subject: rest.join('\t') };
+    });
   } catch {
-    // No previous tag ... show all commits on branch
     try {
-      commits = execFileSync('git', [
-        'log', '--pretty=format:- %s (%h)', '-20'
+      const raw = execFileSync('git', [
+        'log', '--pretty=format:%h\t%s', '-30'
       ], { cwd: repoPath, encoding: 'utf8' }).trim();
+      if (raw) rawCommits = raw.split('\n').map(line => {
+        const [hash, ...rest] = line.split('\t');
+        return { hash, subject: rest.join('\t') };
+      });
     } catch {}
   }
 
-  if (commits) {
-    lines.push('### Commits\n');
-    lines.push(commits);
+  // Categorize commits
+  const categories = { changes: [], fixes: [], docs: [], internal: [] };
+  for (const commit of rawCommits) {
+    const cat = categorizeCommit(commit.subject);
+    categories[cat].push(commit);
+  }
+
+  // Changes section
+  if (categories.changes.length > 0) {
+    lines.push('### Changes\n');
+    for (const c of categories.changes) {
+      lines.push(`- ${c.subject} (${c.hash})`);
+    }
     lines.push('');
   }
 
-  // Files changed
+  // Fixes section
+  if (categories.fixes.length > 0) {
+    lines.push('### Fixes\n');
+    for (const c of categories.fixes) {
+      lines.push(`- ${c.subject} (${c.hash})`);
+    }
+    lines.push('');
+  }
+
+  // Docs section
+  if (categories.docs.length > 0) {
+    lines.push('### Docs\n');
+    for (const c of categories.docs) {
+      lines.push(`- ${c.subject} (${c.hash})`);
+    }
+    lines.push('');
+  }
+
+  // Files changed (exclude ai/ from stats for public-facing notes)
   let filesChanged = '';
   try {
     filesChanged = execFileSync('git', [
-      'diff', `${prevTag}..HEAD`, '--stat'
+      'diff', `${prevTag}..HEAD`, '--stat', '--', '.', ':!ai/'
     ], { cwd: repoPath, encoding: 'utf8' }).trim();
   } catch {}
 
@@ -198,9 +270,13 @@ export function buildReleaseNotes(repoPath, currentVersion, newVersion, notes) {
   lines.push('```');
   lines.push('');
 
+  // Attribution
+  lines.push('---');
+  lines.push('');
+  lines.push('Built by Parker Todd Brooks, Lēsa (OpenClaw, Claude Opus 4.6), Claude Code CLI (Claude Opus 4.6).');
+
   // Compare URL
   if (slug) {
-    lines.push('---');
     lines.push('');
     lines.push(`Full changelog: https://github.com/${slug}/compare/v${currentVersion}...v${newVersion}`);
   }

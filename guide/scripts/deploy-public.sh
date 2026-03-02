@@ -59,6 +59,9 @@ rsync -a \
   --exclude='ai/' \
   --exclude='.git/' \
   --exclude='.DS_Store' \
+  --exclude='.wrangler/' \
+  --exclude='.claude/' \
+  --exclude='CLAUDE.md' \
   "$PRIVATE_REPO/" "$TMPDIR/public/"
 
 cd "$TMPDIR/public"
@@ -95,7 +98,7 @@ PR_URL=$(gh pr create -R "$PUBLIC_REPO" \
 
 echo "Merging PR..."
 PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
-gh pr merge "$PR_NUMBER" -R "$PUBLIC_REPO" --squash
+gh pr merge "$PR_NUMBER" -R "$PUBLIC_REPO" --merge
 
 echo "Code synced via PR: $PR_URL"
 

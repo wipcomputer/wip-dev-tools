@@ -49,6 +49,7 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 **Important:**
 - **Every change goes through a PR.** No direct pushes to main. Not even "just a README fix." Branch, PR, merge. Every time.
 - **Never squash merge.** Every commit has co-authors and tells the story of how something was built. Squashing destroys attribution and history. Always use `--merge` or fast-forward. This applies to `gh pr merge`, manual merges, deploy-public.sh, and any other merge path. No exceptions.
+- **Never use `--no-publish` before deploying to public.** `deploy-public.sh` pulls release notes from the private repo's GitHub release. If you skip the release with `--no-publish`, the public repo gets empty notes. Run the full pipeline first.
 - After merging, switch back to your dev branch. Don't sit on main.
 - Use scoped npm tokens for publishing, not personal credentials.
 
@@ -384,12 +385,14 @@ The public repo has everything an LLM or human needs to understand and use the p
 cd /path/to/private-repo
 git checkout main && git pull origin main
 
-# Step 3: release
+# Step 3: release (MUST create GitHub release for deploy-public.sh to pull notes)
 wip-release patch --notes="description of changes"
 
 # Step 4: deploy to public (code sync + release)
 bash deploy-public.sh /path/to/private-repo <org>/<public-repo>
 ```
+
+**Never use `--no-publish` before deploying to public.** The `deploy-public.sh` script pulls release notes from the private repo's GitHub release. If the GitHub release doesn't exist (because `--no-publish` skipped it), the public release gets empty notes. Always run the full `wip-release` pipeline before `deploy-public.sh`.
 
 The deploy script:
 1. Clones the public repo

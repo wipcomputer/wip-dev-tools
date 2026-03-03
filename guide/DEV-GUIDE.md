@@ -99,6 +99,55 @@ Before any repo goes public:
 8. [ ] GitHub release created with tag
 9. [ ] License compliance ledger initialized for all dependencies
 
+## Cloudflare Workers Deploy
+
+Some repos deploy to Cloudflare Workers via `wrangler deploy`. Same rules as git: **never deploy uncommitted code.**
+
+### The Rule
+
+**Commit first. Deploy second. Always.** The source that produced the deployed worker must exist in git before it goes to Cloudflare. If something breaks, we need to know exactly what's running.
+
+### Repos That Deploy to Cloudflare
+
+| Repo | Worker | Config |
+|------|--------|--------|
+| memory-crystal-private | memory-crystal-demo | wrangler-demo.toml |
+| memory-crystal-private | memory-crystal-cloud | wrangler-mcp.toml |
+| wip-agent-pay | wip-agent-pay | worker/wrangler.toml |
+
+### Deploy Workflow
+
+```
+1. Write code on feature branch
+2. Build:                npm run build:demo (or whatever the build script is)
+3. Test locally:         npm run dev:demo (wrangler dev)
+4. Commit source:        git add src/worker-*.ts wrangler-*.toml && git commit
+5. Push + PR + merge:    normal PR flow
+6. Deploy:               npm run deploy:demo (wrangler deploy)
+```
+
+**Steps 4-5 happen BEFORE step 6.** Not after. Not "I'll commit later." The deploy command should never run on uncommitted code.
+
+### Deploy Guard
+
+Every repo with a `wrangler*.toml` should use guarded deploy scripts in package.json:
+
+```json
+"deploy:demo": "bash -c 'git diff --quiet HEAD -- src/ wrangler-demo.toml || (echo \"ERROR: uncommitted changes. commit before deploying.\" && exit 1)' && wrangler deploy --config wrangler-demo.toml"
+```
+
+This checks that all source files are committed before `wrangler deploy` runs. If anything is dirty, it refuses.
+
+### What Gets Tracked
+
+The deployed worker is the compiled output of committed source. The chain is:
+
+```
+source (git) -> build (tsup) -> dist/*.js -> wrangler deploy -> Cloudflare edge
+```
+
+We track the source. The build is reproducible from source. The deploy is reproducible from the build. If we have the git commit, we can reconstruct exactly what's running.
+
 ## License Compliance
 
 Use `wip-license-hook` for license rug-pull detection:

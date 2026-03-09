@@ -40,8 +40,9 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 3. Push branch:            git push -u origin <prefix>/<feature>
 4. Create PR:              gh pr create --title "..." --body "..."
 5. Merge PR:               gh pr merge <number> --merge
-6. Pull merged main:       git checkout main && git pull origin main
-7. Release:                wip-release patch --notes="description"
+6. Rename merged branch:   (see Post-Merge Branch Rename below)
+7. Pull merged main:       git checkout main && git pull origin main
+8. Release:                wip-release patch --notes="description"
                            # or: wip-release minor / wip-release major
                            # flags: --dry-run (preview), --no-publish (bump + tag only)
 ```
@@ -49,8 +50,53 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 **Important:**
 - **Every change goes through a PR.** No direct pushes to main. Not even "just a README fix." Branch, PR, merge. Every time.
 - **Never squash merge.** Every commit has co-authors and tells the story of how something was built. Squashing destroys attribution and history. Always use `--merge` or fast-forward. This applies to `gh pr merge`, manual merges, deploy-public.sh, and any other merge path. No exceptions.
+- **Never delete branches.** Branches are history. They tell the story of what was built and when. After merging, rename them (see below). Never `git branch -D` or `git push --delete` without renaming first.
 - **Never use `--no-publish` before deploying to public.** `deploy-public.sh` pulls release notes from the private repo's GitHub release. If you skip the release with `--no-publish`, the public repo gets empty notes. Run the full pipeline first.
 - After merging, switch back to your dev branch. Don't sit on main.
+
+### Post-Merge Branch Rename
+
+**Never delete branches after merging.** Instead, rename them with `--merged-YYYY-MM-DD` appended. This preserves history and makes it instantly clear which branches are done and when they were merged.
+
+**Format:**
+```
+<original-branch-name>--merged-YYYY-MM-DD
+```
+
+**Examples:**
+```
+cc-mini/fix-search              -> cc-mini/fix-search--merged-2026-03-08
+lesa-mini/weekly-tuning         -> lesa-mini/weekly-tuning--merged-2026-03-08
+cc-air/add-relay                -> cc-air/add-relay--merged-2026-03-08
+```
+
+**After merging a PR:**
+```bash
+# 1. Rename locally
+git branch -m <prefix>/<feature> <prefix>/<feature>--merged-$(date +%Y-%m-%d)
+
+# 2. Push renamed branch to remote
+git push origin <prefix>/<feature>--merged-$(date +%Y-%m-%d)
+
+# 3. Remove old remote branch name
+git push origin --delete <prefix>/<feature>
+
+# 4. Scan for any other merged branches that missed renaming
+git branch --merged main | grep -v main | grep -v "\-\-merged\-" | while read branch; do
+  echo "WARNING: $branch is merged but not renamed"
+done
+```
+
+**The scan step is mandatory.** Every time you merge, check for stale branches that missed renaming. If you find any, rename them with the date they were merged (check `git log main` for the merge date, not today's date).
+
+**Automation:** `wip-release` runs this scan automatically as step 10 of the release pipeline. It finds all local branches merged into main that haven't been renamed yet, renames them with the correct merge date, and pushes to remote. You don't have to do anything extra on release.
+
+For repos where you merge but don't release immediately, use the standalone script:
+```bash
+bash guide/scripts/post-merge-rename.sh            # scan + rename all
+bash guide/scripts/post-merge-rename.sh --dry-run   # preview only
+bash guide/scripts/post-merge-rename.sh <branch>    # rename specific branch
+```
 - Use scoped npm tokens for publishing, not personal credentials.
 
 ### Release Quality Standards
@@ -364,6 +410,86 @@ Product docs drift fast. If roadmap updates only happen "when someone remembers,
 ### Release notes:
 
 Release notes are the public face of the project. They must be comprehensive. One-liners like "Release v0.6.0" are unacceptable. Every feature, every change, documented section by section. This applies to both private and public GitHub releases.
+
+## Repo Directory Structure
+
+### The Standard Layout
+
+All repos are organized into this directory structure. Every agent on every machine must follow this layout. The folders are organizational categories, not monorepos. Each repo inside is its own independent git repo.
+
+```
+repos/
+├── ldm-os/                      ← NOT a repo. Organizes all LDM OS repos.
+│   ├── apis/                    ← API integrations
+│   ├── apps/                    ← user-facing apps
+│   ├── components/              ← core components
+│   ├── identity/                ← identity tools
+│   ├── operations/              ← dev tools, release pipeline
+│   └── utilities/               ← healthcheck, file-guard, 1password, etc.
+├── wip-inc/                     ← Repo. Company docs (always private).
+├── wip-website-private/         ← Repo. Website working repo (wip.computer).
+├── third-party-repos/           ← NOT a repo. Forks and external repos.
+├── _sort/                       ← NOT a repo. Repos not yet categorized.
+├── _sunsetted/                  ← NOT a repo. Deprecated repos.
+└── _trash/                      ← NOT a repo. Deleted repos.
+```
+
+### Staging Folder Conventions
+
+- **`_to-privatize/`** ... repos staged for privatization
+- **`_sort/`** ... repos that need to be categorized or figured out
+- **`_trash/`** ... deleted items (never truly delete, move here)
+- **Underscore prefix** (`_`) keeps staging folders sorted to the top, visually separated from real repos
+
+These conventions apply at every level: top-level `repos/`, inside `ldm-os/` categories, and nested within staging folders.
+
+### Creating a New Repo
+
+**Always create repos as `-private` from day one.** Do not create a repo and privatize it later. Start with the right name and structure.
+
+```bash
+# 1. Pick the category
+#    apis, apps, components, identity, operations, utilities
+
+# 2. Create on GitHub as private with -private suffix
+gh repo create wipcomputer/<name>-private --private
+
+# 3. Clone into the correct category folder
+cd repos/ldm-os/<category>/
+git clone git@github.com:wipcomputer/<name>-private.git
+
+# 4. Create the ai/ folder structure
+cd <name>-private
+mkdir -p ai/product/plans-prds/{upcoming,current,archive-complete}
+mkdir -p ai/product/plans-prds/todos
+mkdir -p ai/product/product-ideas
+mkdir -p ai/product/notes/research
+mkdir -p ai/dev-updates
+
+# 5. Create your dev branch
+git checkout -b <prefix>/dev
+```
+
+**Never create a repo without picking its category first.** If you don't know where it goes, put it in `_sort/` and figure it out before starting work.
+
+### The Manifest
+
+`repos/repos-manifest.json` is the source of truth for where every repo lives. It maps local paths to GitHub remotes. When a repo is created, moved, or renamed, update the manifest.
+
+Every agent can use the manifest to sync their local directory structure. The goal: every agent on every machine has the same layout.
+
+### Privatize Before You Work
+
+**Do not start any work on a non-privatized repo.** If a repo is in `_to-privatize` and you need to work on it, run it through the privatization process first:
+
+1. Rename the GitHub repo to `<name>-private`
+2. Update the local remote URL (`git remote set-url origin ...`)
+3. Rename the local folder to match
+4. Then start your work
+
+Working on a non-privatized repo means your `ai/` content (plans, todos, dev updates) gets committed to a repo that could accidentally go public. No exceptions.
+
+---
 
 ## Public/Private Repo Pattern
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0 (2026-03-09)
+
+Toolbox consolidation. Three new tools added.
+
+### New tools
+- **wip-file-guard**: blocks destructive edits to protected identity files. For Claude Code CLI and OpenClaw. Previously standalone repo, now folded into toolbox.
+- **wip-universal-installer**: The Universal Interface specification for agent-native software. Six interfaces: CLI, Module, MCP Server, OpenClaw Plugin, Skill, Claude Code Hook. Previously standalone repo, now folded into toolbox.
+- **wip-repos**: repo manifest reconciler. Makes repos-manifest.json the single source of truth for repo organization. Like prettier for folder structure. New tool, built from scratch.
+
+### Other changes
+- `UNIVERSAL-INTERFACE.md` promoted to repo root (from wip-universal-installer SPEC.md)
+- README updated with all three new tools, source code table, install commands
+- Standalone repos renamed to `-deprecated` on GitHub
+- Toolbox now has 9 tools. All self-contained, zero shared dependencies.
+
 ## 1.2.0 (2026-03-09)
 
 Major repo reorganization and Dev Guide expansion.

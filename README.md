@@ -10,7 +10,7 @@ Your AI writes code. But does it know how to release it? Check license complianc
 
 Used internally to manage 100+ repos, 200+ releases, and daily license compliance across the [wipcomputer](https://github.com/wipcomputer) org. These tools run in production every day.
 
-**Real-world example:** [wip-universal-installer](https://github.com/wipcomputer/wip-universal-installer) ships its releases entirely through wip-release. 6 releases, v2.1.5, changelog and GitHub releases all generated automatically. Browse its [release history](https://github.com/wipcomputer/wip-universal-installer/releases) to see the output.
+**Real-world example:** [wip-universal-installer](tools/wip-universal-installer/) ships its releases entirely through wip-release. 6 releases, v2.1.5, changelog and GitHub releases all generated automatically.
 
 ## Tools
 

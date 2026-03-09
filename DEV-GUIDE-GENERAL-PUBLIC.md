@@ -151,6 +151,34 @@ If you skip step 2 or do it manually (e.g. `git tag` + `git push` without creati
 
 The GitHub release on the private repo must exist before deploy-public runs. This is not optional.
 
+### Universal Installer Checklist
+
+Every tool must be verified with the Universal Installer before release. This is not optional.
+
+**Before every release:**
+```bash
+wip-install /path/to/tool --dry-run
+```
+
+This shows which interfaces are detected and which are missing.
+
+**Minimum for agent-callable tools:**
+- Module (`main` or `exports` in package.json)
+- Skill (SKILL.md with YAML frontmatter)
+- MCP Server (`mcp-server.mjs` wrapping the core module)
+
+**Full interface coverage (the goal):**
+- CLI (`bin` in package.json)
+- Module (`main`/`exports`)
+- MCP Server (`mcp-server.mjs`)
+- OpenClaw Plugin (`openclaw.plugin.json`, only for tools with lifecycle hooks)
+- Skill (`SKILL.md`)
+- Claude Code Hook (`guard.mjs` or `claudeCode.hook`, only for tools that guard operations)
+
+**For toolbox repos** (repos with multiple tools in `tools/` subfolders): apply this checklist to each sub-tool, not just the root. Every sub-tool gets its own package.json, SKILL.md, and interface files.
+
+**Dogfood rule:** After releasing, run `wip-install` on the toolbox itself to reinstall. Eat your own cooking.
+
 ### Pre-Publish Checklist
 
 Before any repo goes public:

@@ -16,6 +16,9 @@
   "keywords": ["license", "compliance", "git-hook", "rug-pull", "dependency", "scanner"],
   "author": "WIP Computer",
   "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
   "devDependencies": {
     "typescript": "^5.3.0",
     "@types/node": "^20.0.0"

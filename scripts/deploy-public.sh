@@ -100,6 +100,23 @@ echo "Merging PR..."
 PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
 gh pr merge "$PR_NUMBER" -R "$PUBLIC_REPO" --merge
 
+# Delete the deploy branch (merged, no longer needed)
+echo "Cleaning up deploy branch..."
+gh api -X DELETE "repos/$PUBLIC_REPO/git/refs/heads/$BRANCH" 2>/dev/null && echo "  ✓ Deleted branch $BRANCH" || echo "  ! Could not delete branch (non-fatal)"
+
+# Clean up any other non-main branches on public repo
+echo "Checking for stale branches on public repo..."
+STALE_BRANCHES=$(gh api "repos/$PUBLIC_REPO/branches" --paginate --jq '.[].name' 2>/dev/null | grep -v '^main$' || true)
+if [[ -n "$STALE_BRANCHES" ]]; then
+  STALE_COUNT=$(echo "$STALE_BRANCHES" | wc -l | tr -d ' ')
+  echo "  Found $STALE_COUNT stale branch(es). Deleting..."
+  echo "$STALE_BRANCHES" | while read -r stale; do
+    gh api -X DELETE "repos/$PUBLIC_REPO/git/refs/heads/$stale" 2>/dev/null && echo "  ✓ Deleted $stale" || echo "  ! Could not delete $stale"
+  done
+else
+  echo "  ✓ No stale branches"
+fi
+
 echo "Code synced via PR: $PR_URL"
 
 # ── Sync release to public repo ──

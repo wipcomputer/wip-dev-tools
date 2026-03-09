@@ -3,7 +3,7 @@ name: wip-repo-permissions
 version: 1.0.0
 description: Repo visibility guard. Blocks repos from going public without a -private counterpart.
 author: Parker Todd Brooks
-interface: [cli, hook, plugin]
+interface: [cli, module, mcp, hook, plugin]
 ---
 
 # Repo Permissions Hook
@@ -35,3 +35,17 @@ Add to `~/.claude/settings.json` under `hooks.PreToolUse` with matcher `"Bash"`.
 
 ### Install as OpenClaw plugin
 Copy to `~/.ldm/extensions/wip-repo-permissions-hook/` and restart gateway.
+
+### MCP
+
+Tools: `repo_permissions_check`, `repo_permissions_audit`
+
+Add to `.mcp.json`:
+```json
+{
+  "wip-repo-permissions": {
+    "command": "node",
+    "args": ["/path/to/tools/wip-repo-permissions-hook/mcp-server.mjs"]
+  }
+}
+```

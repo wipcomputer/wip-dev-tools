@@ -198,14 +198,14 @@ All implementation source is committed in this repo. No closed binaries, no myst
 |------|----------|----------------|-------------|
 | Dev Guide | Markdown | `DEV-GUIDE-GENERAL-PUBLIC.md` | None. |
 | LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh`, `visibility-audit.sh` | None. Runnable standalone or via `.app` wrapper. |
-| wip-release | JavaScript (ESM) | `tools/wip-release/cli.js`, `core.mjs` | None. What you see is what runs. |
-| wip-license-hook | TypeScript | `tools/wip-license-hook/src/**/*.ts` | `cd tools/wip-license-hook && npm install && npm run build` |
-| wip-repo-permissions-hook | JavaScript (ESM) | `tools/wip-repo-permissions-hook/core.mjs`, `cli.js`, `guard.mjs` | None. What you see is what runs. |
+| wip-release | JavaScript (ESM) | `tools/wip-release/cli.js`, `core.mjs`, `mcp-server.mjs` | None. What you see is what runs. |
+| wip-license-hook | TypeScript | `tools/wip-license-hook/src/**/*.ts`, `mcp-server.mjs` | `cd tools/wip-license-hook && npm install && npm run build` |
+| wip-repo-permissions-hook | JavaScript (ESM) | `tools/wip-repo-permissions-hook/core.mjs`, `cli.js`, `guard.mjs`, `mcp-server.mjs` | None. What you see is what runs. |
 | post-merge-rename.sh | Shell | `scripts/post-merge-rename.sh` | None. |
 | wip-file-guard | JavaScript (ESM) | `tools/wip-file-guard/guard.mjs` | None. What you see is what runs. |
 | wip-universal-installer | JavaScript (ESM) | `tools/wip-universal-installer/detect.mjs`, `install.js` | None. What you see is what runs. |
 | deploy-public.sh | Shell | `scripts/deploy-public.sh` | None. |
-| wip-repos | JavaScript (ESM) | `tools/wip-repos/core.mjs`, `cli.mjs` | None. What you see is what runs. |
+| wip-repos | JavaScript (ESM) | `tools/wip-repos/core.mjs`, `cli.mjs`, `mcp-server.mjs` | None. What you see is what runs. |
 
 Previously standalone tools (wip-release, wip-license-hook, wip-file-guard, wip-universal-installer) were merged here. The standalone repos redirect to this one.
 

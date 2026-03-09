@@ -29,5 +29,8 @@
     "type": "git",
     "url": "git+https://github.com/wipcomputer/wip-release.git"
   },
-  "homepage": "https://github.com/wipcomputer/wip-dev-tools"
+  "homepage": "https://github.com/wipcomputer/wip-dev-tools",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
 }

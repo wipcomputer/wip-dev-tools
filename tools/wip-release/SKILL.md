@@ -12,7 +12,7 @@ metadata:
     - npm-publish
     - github-release
   dependencies: []
-  interface: CLI
+  interface: [cli, module, mcp]
   requires:
     binaries: [git, npm, gh, op, clawhub]
     secrets:
@@ -79,3 +79,17 @@ Branch protection may prevent direct pushes. Make sure you're on main after merg
 
 ### SKILL.md not updated
 Only updates if the file has a YAML frontmatter `version:` field between `---` markers.
+
+## MCP
+
+Tools: `release`, `release_status`
+
+Add to `.mcp.json`:
+```json
+{
+  "wip-release": {
+    "command": "node",
+    "args": ["/path/to/tools/wip-release/mcp-server.mjs"]
+  }
+}
+```

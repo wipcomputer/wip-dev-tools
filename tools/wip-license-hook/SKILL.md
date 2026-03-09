@@ -1,6 +1,8 @@
 ---
 name: wip-license-hook
 description: License rug-pull detection. Scans dependencies and forks for license changes, gates upstream merges, maintains a license ledger, and generates a public compliance dashboard. Use when checking dependency licenses, before merging upstream, or for daily license health scans.
+version: 1.0.0
+interface: [cli, mcp]
 metadata:
   openclaw:
     emoji: "🛡️"
@@ -72,3 +74,17 @@ If any license changed, sends alert via configured channel (email, iMessage, Dis
 - 🟢 **Clean** — license unchanged since adoption
 - 🟡 **Warning** — license metadata inconsistency (e.g., LICENSE file says MIT but package.json says ISC)
 - 🔴 **Blocked** — license changed from what was adopted. Merge blocked. Human review required.
+
+## MCP
+
+Tools: `license_scan`, `license_audit`, `license_gate`, `license_ledger`
+
+Add to `.mcp.json`:
+```json
+{
+  "wip-license-hook": {
+    "command": "node",
+    "args": ["/path/to/tools/wip-license-hook/mcp-server.mjs"]
+  }
+}
+```

@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.4.0 (2026-03-09)
+
+MCP unlock. All core tools are now agent-callable.
+
+### MCP Servers (new)
+- **wip-release**: `mcp-server.mjs` wrapping `core.mjs`. Tools: `release`, `release_status`
+- **wip-license-hook**: `mcp-server.mjs` wrapping compiled `dist/`. Tools: `license_scan`, `license_audit`, `license_gate`, `license_ledger`
+- **wip-repo-permissions-hook**: `mcp-server.mjs` wrapping `core.mjs`. Tools: `repo_permissions_check`, `repo_permissions_audit`
+- **wip-repos**: `mcp-server.mjs` wrapping `core.mjs`. Tools: `repos_check`, `repos_sync_plan`, `repos_add`, `repos_move`, `repos_tree`
+
+### SKILL.md files (new)
+- **wip-repos**: added SKILL.md (was the only tool without one)
+- **deploy-public**: added `scripts/SKILL-deploy-public.md`
+- **post-merge-rename**: added `scripts/SKILL-post-merge-rename.md`
+
+### Interface updates
+- wip-release SKILL.md: interface updated from CLI to [cli, module, mcp], added MCP section
+- wip-license-hook SKILL.md: added version, interface [cli, mcp], added MCP section
+- wip-repo-permissions-hook SKILL.md: interface updated to [cli, module, mcp, hook, plugin], added MCP section
+- All 4 tools: `@modelcontextprotocol/sdk` added as dependency
+
+### Dev Guide updates
+- Added "Universal Installer Checklist" section to DEV-GUIDE-GENERAL-PUBLIC.md
+- Added "Universal Installer ... Dogfooding Rule" section to private Dev Guide
+- Documented the v1.3.0 zero-MCP-servers incident
+
+### Other
+- Root SKILL.md bumped to 1.4.0, added all missing tools (wip-file-guard, wip-universal-installer, wip-repos, LDM Dev Tools.app), added MCP Servers section
+- README source code table updated with mcp-server.mjs files
+
 ## 1.3.0 (2026-03-09)
 
 Toolbox consolidation. Three new tools added.

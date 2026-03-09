@@ -126,6 +126,64 @@ open -W ~/Applications/LDMDevTools.app --args visibility-audit
 
 Logs: `/tmp/ldm-dev-tools/`
 
+### wip-file-guard
+
+Hook that blocks destructive edits to protected identity files. Works with Claude Code CLI and OpenClaw. Protects CLAUDE.md, SHARED-CONTEXT.md, SOUL.md, IDENTITY.md, MEMORY.md, and pattern-matched memory/journal files.
+
+Two rules: block `Write` on protected files entirely, block `Edit` when removing more than 2 lines or replacing more than 4 lines.
+
+```bash
+# List protected files
+wip-file-guard --list
+```
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-file-guard/guard.mjs`](tools/wip-file-guard/guard.mjs) (single file, all logic). Zero dependencies.
+
+[README](tools/wip-file-guard/README.md) ... [SKILL.md](tools/wip-file-guard/SKILL.md) ... [Reference](tools/wip-file-guard/REFERENCE.md)
+
+### wip-universal-installer
+
+The Universal Interface specification for agent-native software. Defines how every tool ships six interfaces: CLI, importable module, MCP Server, OpenClaw Plugin, Skill, Claude Code Hook. Includes a reference installer and a minimal example template.
+
+```bash
+# Detect what interfaces a repo supports
+wip-install /path/to/repo --dry-run
+
+# Install a tool from GitHub
+wip-install wipcomputer/wip-file-guard
+```
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-universal-installer/detect.mjs`](tools/wip-universal-installer/detect.mjs) (detection), [`tools/wip-universal-installer/install.js`](tools/wip-universal-installer/install.js) (installer). Zero dependencies.
+
+[README](tools/wip-universal-installer/README.md) ... [SKILL.md](tools/wip-universal-installer/SKILL.md) ... [SPEC.md](tools/wip-universal-installer/SPEC.md) ... [Reference](tools/wip-universal-installer/REFERENCE.md)
+
+Also available as `UNIVERSAL-INTERFACE.md` at the repo root.
+
+### wip-repos
+
+Repo manifest reconciler. Makes `repos-manifest.json` the single source of truth for repo organization. Like prettier for folder structure. Move folders around all day; on sync, everything snaps back to where the manifest says.
+
+```bash
+# Check for drift
+wip-repos check
+
+# Sync filesystem to match manifest
+wip-repos sync --dry-run
+
+# Add a repo
+wip-repos add ldm-os/utilities/my-tool --remote wipcomputer/my-tool
+
+# Move a repo in the manifest
+wip-repos move ldm-os/utilities/my-tool --to ldm-os/devops/my-tool
+
+# Generate directory tree
+wip-repos tree
+```
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-repos/core.mjs`](tools/wip-repos/core.mjs) (logic), [`tools/wip-repos/cli.mjs`](tools/wip-repos/cli.mjs) (CLI). Zero dependencies.
+
+[README](tools/wip-repos/README.md)
+
 ## Source Code
 
 All implementation source is committed in this repo. No closed binaries, no mystery boxes.
@@ -138,8 +196,11 @@ All implementation source is committed in this repo. No closed binaries, no myst
 | deploy-public.sh | Shell | `scripts/deploy-public.sh` | None. |
 | post-merge-rename.sh | Shell | `scripts/post-merge-rename.sh` | None. |
 | LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh`, `visibility-audit.sh` | None. Runnable standalone or via `.app` wrapper. |
+| wip-file-guard | JavaScript (ESM) | `tools/wip-file-guard/guard.mjs` | None. What you see is what runs. |
+| wip-universal-installer | JavaScript (ESM) | `tools/wip-universal-installer/detect.mjs`, `install.js` | None. What you see is what runs. |
+| wip-repos | JavaScript (ESM) | `tools/wip-repos/core.mjs`, `cli.mjs` | None. What you see is what runs. |
 
-Both tools were previously in standalone repos, now merged here. The standalone repos redirect to this one.
+Previously standalone tools (wip-release, wip-license-hook, wip-file-guard, wip-universal-installer) were merged here. The standalone repos redirect to this one.
 
 ### Private/Public Repo Pattern
 
@@ -185,6 +246,9 @@ Or install individually:
 ```bash
 npm install -g @wipcomputer/wip-release
 npm install -g @wipcomputer/wip-license-hook
+npm install -g @wipcomputer/wip-file-guard
+npm install -g @wipcomputer/universal-installer
+npm install -g @wipcomputer/wip-repos
 ```
 
 ## License

@@ -1,0 +1,5 @@
+# Private content ... never publish to npm
+ai/
+.claude/
+.wrangler/
+CLAUDE.md

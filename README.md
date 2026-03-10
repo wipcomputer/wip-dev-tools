@@ -10,7 +10,7 @@ Your AI writes code. But does it know how to release it? Check license complianc
 
 AI DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shipping real software together.
 
-## Teach Your AI to Dev
+## Teach your AI to use DevOps Toolbox
 
 Open your AI and say:
 
@@ -40,44 +40,44 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 ### Setup & Onboarding
 
 **Universal Installer**
-- AI agents can't install tools across six interfaces. This can.
-- One command installs everything a repo ships. CLI binaries, MCP servers, plugins, hooks. Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically
+- Teaches your AI to install anything you ship. One command deploys all six interfaces: CLI, MCP Server, OpenClaw Plugin, Skill, Claude Code Hook.
+- Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically
 - **Interfaces:** CLI, Module, Skill
 - *Stable*
 - [Read more about Universal Installer](tools/wip-universal-installer/README.md)
 
 **Dev Guide**
-- AI teams need conventions or every agent does things differently.
-- Best practices for AI-assisted development teams. Covers release process, repo structure, branch protection, the `ai/` folder convention, and more
+- Your team's conventions, baked in. Release process, repo structure, branch protection, the `ai/` folder standard.
+- Best practices for AI-assisted development teams. Covers everything from branching to compliance
 - [Read the Dev Guide](DEV-GUIDE-GENERAL-PUBLIC.md)
 
 ### Infrastructure
 
 **LDM Dev Tools.app**
-- Scheduled jobs need Full Disk Access on macOS. One app to grant it to.
-- macOS automation wrapper. A native .app bundle that runs scheduled jobs (backup, branch protection audit, visibility audit) with Full Disk Access. One app to grant permissions to, one place to add new automation. Scripts can be run standalone without the .app
+- Scheduled automation that runs whether anyone remembers or not. Backup, branch protection audit, visibility audit.
+- macOS .app bundle with Full Disk Access. One app to grant permissions to, one place to add new automation. Scripts can be run standalone without the .app
 - *Stable*
 - [Read more about LDM Dev Tools.app](tools/ldm-jobs/README.md)
 
 ### Release & Deploy
 
 **Release Pipeline**
-- AI agents forget release steps. This makes releases one command.
-- Version bump, changelog, SKILL.md sync, npm publish, GitHub release. All in one shot. Release notes live on the branch so you review them in the PR before they go live. Warns when notes are too short or look like changelogs instead of narrative
+- Release software correctly. Version bump, changelog, npm publish, GitHub release. One command, nothing forgotten.
+- SKILL.md sync, release notes on the branch for PR review. Warns when notes are too short or look like changelogs instead of narrative
 - **Interfaces:** CLI, Module, MCP, Skill
 - *Stable*
 - [Read more about Release Pipeline](tools/wip-release/README.md)
 
 **Private-to-Public Sync**
-- Publishing from a private repo means excluding internal files. This handles it.
+- Publish safely. Syncs private to public, excludes internal files, every time.
 - One script syncs your private working repo to a clean public mirror. Excludes internal `ai/` folders automatically. Creates a PR, merges it, cleans up branches
 - **Interfaces:** CLI, Skill
 - *Stable*
 - [Read more about Private-to-Public Sync](tools/deploy-public/SKILL.md)
 
 **Post-Merge Branch Naming**
-- Merged branches pile up. This renames them so you know what's done.
-- Automatically renames merged branches with `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list
+- Clean up after itself. Merged branches get renamed with dates automatically.
+- Renames merged branches with `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list
 - **Interfaces:** CLI, Skill
 - *Stable*
 - [Read more about Post-Merge Naming](tools/post-merge-rename/SKILL.md)
@@ -85,21 +85,21 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 ### License, Compliance, and Protection
 
 **Identity File Protection**
-- AI agents overwrite identity files by accident. This stops them.
-- Blocks destructive edits to protected identity files. CLAUDE.md, SOUL.md, MEMORY.md, SHARED-CONTEXT.md. Your AI can read them but can't blow them away
+- Know what it can never overwrite. CLAUDE.md, SOUL.md, MEMORY.md, SHARED-CONTEXT.md are permanently protected.
+- Blocks destructive edits to protected identity files. Your AI can read them but can't blow them away
 - **Interfaces:** CLI, Module, OpenClaw, Skill, CC Hook
 - *Stable*
 - [Read more about Identity File Protection](tools/wip-file-guard/README.md)
 
 **License Guard**
-- With 10+ repos, license files drift. This enforces them all at once.
-- Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup asks what licensing you want. Subsequent runs audit and enforce. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues
+- Enforce licensing on every commit. Copyright, dual-license, CLA. Checked automatically.
+- Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues
 - **Interfaces:** CLI, Module, CC Hook
 - *Beta*
 - [Read more about License Guard](tools/wip-license-guard/cli.mjs)
 
 **License Rug-Pull Detection**
-- Dependencies change licenses without telling you. This catches it.
+- Catch license changes in dependencies before they ship.
 - Scans every dependency for license changes. Blocks merges if a license changed upstream. Daily cron scan. Generates a public compliance dashboard
 - **Interfaces:** CLI, Module, MCP, Skill
 - *Stable*
@@ -108,15 +108,15 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 ### Repo Management
 
 **Repo Visibility Guard**
-- One wrong click makes a private repo public. This blocks that.
+- Never accidentally expose a private repo.
 - Blocks repos from going public without a `-private` counterpart. Catches accidental exposure of internal plans, todos, and development context before it happens
 - **Interfaces:** CLI, Module, MCP, OpenClaw, Skill, CC Hook
 - *Stable*
 - [Read more about Repo Visibility Guard](tools/wip-repo-permissions-hook/README.md)
 
 **Repo Manifest Reconciler**
-- Repos end up everywhere. This snaps them back to where they belong.
-- Single source of truth for repo organization. Like prettier for folder structure. Move folders around all day; on sync, everything snaps back to where the manifest says
+- Know where every repo belongs. One source of truth for folder structure.
+- Like prettier for folder structure. Move folders around all day; on sync, everything snaps back to where the manifest says
 - **Interfaces:** CLI, Module, MCP, Skill
 - *Stable*
 - [Read more about Repo Manifest](tools/wip-repos/README.md)

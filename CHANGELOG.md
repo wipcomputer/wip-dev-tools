@@ -2,6 +2,11 @@
 
 
 
+
+## 1.7.1 (2026-03-10)
+
+Reframe tool descriptions with teach your AI pattern, file GPT and Grok feedback on v1.7.0
+
 ## 1.7.0 (2026-03-10)
 
 ## v1.7.0: Renamed to AI DevOps Toolbox, CLA, License Enforcement, Branch Prune, README Polish

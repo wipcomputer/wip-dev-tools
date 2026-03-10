@@ -1,6 +1,6 @@
 ---
 name: WIP AI DevOps Toolbox
-version: 1.7.6
+version: 1.7.7
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
@@ -27,10 +27,22 @@ Your AI writes code. But does it know how to release it? Check license complianc
 
 AI DevOps Toolbox is 11 tools that teach your AI how to do all of this. Once installed, you don't run them manually. Your AI knows how to use them and does it automatically. Built by a team of humans and AIs shipping real software together.
 
+## Operating Rules
+
+**Always dry-run first.** Before installing, deploying, or running any destructive operation, run with `--dry-run` so the user can see exactly what will change. Only proceed with the real operation when the user explicitly says to.
+
+**Write dev updates as you work.** When doing significant work on a repo that uses this toolbox, write a dev update to `ai/dev-updates/YYYY-MM-DD--HH-MM--agent--description.md`. The release pipeline auto-detects these and uses them as release notes. No more thin one-liners.
+
 ## Install
 
+Always dry-run first:
 ```bash
 npm install -g @wipcomputer/universal-installer
+wip-install wipcomputer/wip-ai-devops-toolbox --dry-run
+```
+
+Show the user what will change. When they're ready:
+```bash
 wip-install wipcomputer/wip-ai-devops-toolbox
 ```
 

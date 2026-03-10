@@ -29,7 +29,7 @@
     "type": "git",
     "url": "git+https://github.com/wipcomputer/wip-release.git"
   },
-  "homepage": "https://github.com/wipcomputer/wip-devops-toolbox",
+  "homepage": "https://github.com/wipcomputer/wip-ai-devops-toolbox",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   }

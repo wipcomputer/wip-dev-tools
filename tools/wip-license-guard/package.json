@@ -9,7 +9,7 @@
   "license": "MIT AND AGPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wipcomputer/wip-devops-toolbox.git",
+    "url": "git+https://github.com/wipcomputer/wip-ai-devops-toolbox.git",
     "directory": "tools/wip-license-guard"
   }
 }

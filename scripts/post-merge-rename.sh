@@ -3,13 +3,13 @@
 # post-merge-rename.sh
 # Scans for branches merged into main and renames them with --merged-YYYY-MM-DD.
 # Branches already renamed (containing --merged-) are skipped.
-# Never deletes branches. Only renames.
 #
 # Usage:
 #   bash post-merge-rename.sh                    # scan + rename all
 #   bash post-merge-rename.sh <branch>           # rename a specific branch
 #   bash post-merge-rename.sh --dry-run          # preview only
-#   bash post-merge-rename.sh <branch> --dry-run # preview specific branch
+#   bash post-merge-rename.sh --prune            # rename + delete old merged branches (keep last 3 per developer)
+#   bash post-merge-rename.sh --prune --dry-run  # preview prune
 #
 # Run this after merging a PR, or periodically to catch missed renames.
 #
@@ -19,16 +19,24 @@
 set -euo pipefail
 
 DRY_RUN=false
+PRUNE=false
 SPECIFIC_BRANCH=""
+KEEP_COUNT=3
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
+    --prune) PRUNE=true ;;
     --help|-h)
-      echo "Usage: post-merge-rename.sh [<branch>] [--dry-run]"
+      echo "Usage: post-merge-rename.sh [<branch>] [--dry-run] [--prune]"
       echo ""
       echo "Scans for branches merged into main and renames them"
-      echo "with --merged-YYYY-MM-DD suffix. Never deletes branches."
+      echo "with --merged-YYYY-MM-DD suffix."
+      echo ""
+      echo "  --prune    After renaming, delete old --merged branches."
+      echo "             Keeps the last $KEEP_COUNT per developer prefix."
+      echo "             Also deletes stale branches whose PRs are merged"
+      echo "             but were never renamed."
       exit 0
       ;;
     *) SPECIFIC_BRANCH="$arg" ;;
@@ -116,6 +124,81 @@ else
   while IFS= read -r branch; do
     rename_branch "$branch"
   done <<< "$merged"
+fi
+
+# ── Prune old merged branches ────────────────────────────────────────
+
+prune_branches() {
+  echo ""
+  echo "Pruning old merged branches (keeping last $KEEP_COUNT per developer)..."
+
+  # Get all remote --merged branches
+  local merged_branches
+  merged_branches=$(git branch -r | grep "\-\-merged\-" | sed 's|origin/||' | sed 's/^[[:space:]]*//' | sort)
+
+  if [[ -z "$merged_branches" ]]; then
+    echo "  No --merged branches found. Nothing to prune."
+    return
+  fi
+
+  # Extract unique developer prefixes (everything before the first /)
+  local prefixes
+  prefixes=$(echo "$merged_branches" | sed 's|/.*||' | sort -u)
+
+  for prefix in $prefixes; do
+    # Get all --merged branches for this prefix, sorted by date (newest first)
+    # The date is in the --merged-YYYY-MM-DD suffix
+    local branches_for_prefix
+    branches_for_prefix=$(echo "$merged_branches" | grep "^${prefix}/" | sort -t'-' -k$(echo "$prefix" | tr -cd '-' | wc -c | tr -d ' ' | xargs -I{} expr {} + 5) -r 2>/dev/null || echo "$merged_branches" | grep "^${prefix}/" | sort -r)
+
+    local count=0
+    while IFS= read -r branch; do
+      [[ -z "$branch" ]] && continue
+      count=$((count + 1))
+
+      if [[ $count -le $KEEP_COUNT ]]; then
+        echo "  ✓ KEEP $branch"
+      else
+        if $DRY_RUN; then
+          echo "  [dry-run] DELETE $branch"
+        else
+          git push origin --delete "$branch" 2>/dev/null && echo "  ✗ DELETED $branch" || echo "  ! FAILED to delete $branch"
+          git branch -d "$branch" 2>/dev/null || true
+        fi
+      fi
+    done <<< "$branches_for_prefix"
+  done
+
+  # Also clean up stale branches: branches without --merged suffix
+  # whose PRs are merged (they exist on remote but have no open PR)
+  echo ""
+  echo "Checking for stale unmerged-looking branches..."
+
+  local all_remote
+  all_remote=$(git branch -r | grep -v HEAD | grep -v "origin/main" | sed 's|origin/||' | sed 's/^[[:space:]]*//' | grep -v "\-\-merged\-" || true)
+
+  local current_branch
+  current_branch=$(git branch --show-current)
+
+  for branch in $all_remote; do
+    [[ -z "$branch" ]] && continue
+    # Skip the current working branch
+    [[ "$branch" == "$current_branch" ]] && continue
+
+    # Check if this branch is fully merged into main
+    if git merge-base --is-ancestor "origin/$branch" origin/main 2>/dev/null; then
+      if $DRY_RUN; then
+        echo "  [dry-run] DELETE $branch (merged but never renamed)"
+      else
+        git push origin --delete "$branch" 2>/dev/null && echo "  ✗ DELETED $branch (merged but never renamed)" || echo "  ! FAILED to delete $branch"
+        git branch -d "$branch" 2>/dev/null || true
+      fi
+    fi
+  done
+}
+
+if $PRUNE; then
+  prune_branches
 fi
 
 echo ""

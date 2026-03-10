@@ -1,14 +1,14 @@
 {
-  "name": "@wipcomputer/wip-devops-toolbox",
-  "version": "1.6.0",
+  "name": "@wipcomputer/wip-ai-devops-toolbox",
+  "version": "1.7.0",
   "type": "module",
-  "description": "The complete DevOps toolkit for AI-assisted development teams.",
+  "description": "The complete AI DevOps toolkit for AI-assisted development teams.",
   "private": true,
   "license": "MIT",
   "author": "Parker Todd Brooks",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wipcomputer/wip-devops-toolbox.git"
+    "url": "git+https://github.com/wipcomputer/wip-ai-devops-toolbox.git"
   },
-  "homepage": "https://github.com/wipcomputer/wip-devops-toolbox"
+  "homepage": "https://github.com/wipcomputer/wip-ai-devops-toolbox"
 }

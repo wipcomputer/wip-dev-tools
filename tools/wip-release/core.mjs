@@ -401,6 +401,46 @@ export async function release({ repoPath, level, notes, dryRun, noPublish }) {
   console.log(`  ${repoName}: ${currentVersion} -> ${newVersion} (${level})`);
   console.log(`  ${'─'.repeat(40)}`);
 
+  // 0. License compliance gate
+  const configPath = join(repoPath, '.license-guard.json');
+  if (existsSync(configPath)) {
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    const licenseIssues = [];
+
+    const licensePath = join(repoPath, 'LICENSE');
+    if (!existsSync(licensePath)) {
+      licenseIssues.push('LICENSE file is missing');
+    } else {
+      const licenseText = readFileSync(licensePath, 'utf8');
+      if (!licenseText.includes(config.copyright)) {
+        licenseIssues.push(`LICENSE copyright does not match "${config.copyright}"`);
+      }
+      if (config.license === 'MIT+AGPL' && !licenseText.includes('AGPL') && !licenseText.includes('GNU Affero')) {
+        licenseIssues.push('LICENSE is MIT-only but config requires MIT+AGPL');
+      }
+    }
+
+    if (!existsSync(join(repoPath, 'CLA.md'))) {
+      licenseIssues.push('CLA.md is missing');
+    }
+
+    const readmePath = join(repoPath, 'README.md');
+    if (existsSync(readmePath)) {
+      const readme = readFileSync(readmePath, 'utf8');
+      if (!readme.includes('## License')) licenseIssues.push('README.md missing ## License section');
+      if (config.license === 'MIT+AGPL' && !readme.includes('AGPL')) licenseIssues.push('README.md License section missing AGPL reference');
+    }
+
+    if (licenseIssues.length > 0) {
+      console.log(`  ✗ License compliance failed:`);
+      for (const issue of licenseIssues) console.log(`    - ${issue}`);
+      console.log(`\n  Run \`wip-license-guard check --fix\` to auto-repair, then try again.`);
+      console.log('');
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+    console.log(`  ✓ License compliance passed`);
+  }
+
   if (dryRun) {
     const hasSkill = existsSync(join(repoPath, 'SKILL.md'));
     console.log(`  [dry run] Would bump package.json to ${newVersion}`);
@@ -525,6 +565,75 @@ export async function release({ repoPath, level, notes, dryRun, noPublish }) {
   } catch (e) {
     // Non-fatal: branch cleanup is a convenience, not a blocker
     console.log(`  ! Branch cleanup skipped: ${e.message}`);
+  }
+
+  // 11. Prune old merged branches (keep last 3 per developer prefix)
+  try {
+    const KEEP_COUNT = 3;
+    const remoteBranches = execSync(
+      'git branch -r', { cwd: repoPath, encoding: 'utf8' }
+    ).split('\n')
+      .map(b => b.trim())
+      .filter(b => b && !b.includes('HEAD') && b.includes('--merged-'))
+      .map(b => b.replace('origin/', ''));
+
+    if (remoteBranches.length > 0) {
+      // Group by developer prefix (everything before first /)
+      const byPrefix = {};
+      for (const branch of remoteBranches) {
+        const prefix = branch.split('/')[0];
+        if (!byPrefix[prefix]) byPrefix[prefix] = [];
+        byPrefix[prefix].push(branch);
+      }
+
+      let pruned = 0;
+      for (const [prefix, branches] of Object.entries(byPrefix)) {
+        // Sort by date descending (date is at the end: --merged-YYYY-MM-DD)
+        branches.sort((a, b) => {
+          const dateA = a.match(/--merged-(\d{4}-\d{2}-\d{2})/)?.[1] || '';
+          const dateB = b.match(/--merged-(\d{4}-\d{2}-\d{2})/)?.[1] || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        for (let i = KEEP_COUNT; i < branches.length; i++) {
+          try {
+            execSync(`git push origin --delete "${branches[i]}"`, { cwd: repoPath, stdio: 'pipe' });
+            execSync(`git branch -d "${branches[i]}" 2>/dev/null || true`, { cwd: repoPath, stdio: 'pipe', shell: true });
+            pruned++;
+          } catch {}
+        }
+      }
+
+      if (pruned > 0) {
+        console.log(`  ✓ Pruned ${pruned} old merged branch(es)`);
+      }
+    }
+
+    // Clean stale branches (merged into main but never renamed)
+    const current = execSync('git branch --show-current', { cwd: repoPath, encoding: 'utf8' }).trim();
+    const allRemote = execSync(
+      'git branch -r', { cwd: repoPath, encoding: 'utf8' }
+    ).split('\n')
+      .map(b => b.trim())
+      .filter(b => b && !b.includes('HEAD') && !b.includes('origin/main') && !b.includes('--merged-'))
+      .map(b => b.replace('origin/', ''));
+
+    let staleCleaned = 0;
+    for (const branch of allRemote) {
+      if (branch === current) continue;
+      try {
+        execSync(`git merge-base --is-ancestor origin/${branch} origin/main`, { cwd: repoPath, stdio: 'pipe' });
+        // If we get here, branch is fully merged
+        execSync(`git push origin --delete "${branch}"`, { cwd: repoPath, stdio: 'pipe' });
+        execSync(`git branch -d "${branch}" 2>/dev/null || true`, { cwd: repoPath, stdio: 'pipe', shell: true });
+        staleCleaned++;
+      } catch {}
+    }
+    if (staleCleaned > 0) {
+      console.log(`  ✓ Cleaned ${staleCleaned} stale branch(es)`);
+    }
+  } catch (e) {
+    console.log(`  ! Branch prune skipped: ${e.message}`);
   }
 
   console.log('');

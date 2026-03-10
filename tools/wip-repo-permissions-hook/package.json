@@ -23,7 +23,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wipcomputer/wip-devops-toolbox.git"
+    "url": "git+https://github.com/wipcomputer/wip-ai-devops-toolbox.git"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"

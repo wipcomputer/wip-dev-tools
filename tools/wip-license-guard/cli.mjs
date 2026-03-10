@@ -14,6 +14,7 @@ const command = HELP_FLAGS.some(f => args.includes(f)) ? 'help' : (args.find(a =
 const target = args.find((a, i) => i > 0 && !a.startsWith('--')) || '.';
 const FIX = args.includes('--fix');
 const QUIET = args.includes('--quiet');
+const FROM_STANDARD = args.includes('--from-standard');
 
 function log(msg) { if (!QUIET) console.log(msg); }
 function ok(msg) { if (!QUIET) console.log(`  \u2713 ${msg}`); }
@@ -29,8 +30,65 @@ function ask(question) {
   });
 }
 
+// WIP Computer standard defaults
+const WIP_STANDARD = {
+  copyright: 'WIP Computer, Inc.',
+  license: 'MIT+AGPL',
+  year: String(new Date().getFullYear()),
+  attribution: 'Built by Parker Todd Brooks, Lēsa (OpenClaw, Claude Opus 4.6), Claude Code (Claude Opus 4.6).',
+};
+
+function generateCLA() {
+  return `###### WIP Computer
+
+# Contributor License Agreement
+
+By submitting a pull request to this repository, you agree to the following:
+
+1. **You grant WIP Computer, Inc. a perpetual, worldwide, non-exclusive, royalty-free, irrevocable license** to use, reproduce, modify, distribute, sublicense, and otherwise exploit your contribution under any license, including commercial licenses.
+
+2. **You retain copyright** to your contribution. This agreement does not transfer ownership. You can use your own code however you want.
+
+3. **You confirm** that your contribution is your original work, or that you have the right to submit it under these terms.
+
+4. **You understand** that your contribution may be used in both open source and commercial versions of this software.
+
+This is standard open source governance. Apache, Google, Meta, and Anthropic all use similar agreements. The goal is simple: keep the tools free for everyone while allowing WIP Computer, Inc. to offer commercial licenses to companies that need them.
+
+Using these tools to build your own software is always free. This agreement only matters if WIP Computer, Inc. needs to relicense the codebase commercially.
+
+If you have questions, open an issue or reach out.
+`;
+}
+
 async function init(repoPath) {
   const configPath = join(repoPath, '.license-guard.json');
+
+  // --from-standard: apply WIP Computer defaults without prompting
+  if (FROM_STANDARD) {
+    log('\n  wip-license-guard init --from-standard\n');
+
+    const config = { ...WIP_STANDARD, created: new Date().toISOString() };
+
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+    ok(`Config saved to .license-guard.json`);
+
+    const licensePath = join(repoPath, 'LICENSE');
+    writeFileSync(licensePath, generateLicense(config));
+    ok(`LICENSE file generated (dual MIT+AGPLv3)`);
+
+    const claPath = join(repoPath, 'CLA.md');
+    if (!existsSync(claPath)) {
+      writeFileSync(claPath, generateCLA());
+      ok(`CLA.md generated`);
+    } else {
+      ok(`CLA.md already exists`);
+    }
+
+    log(`\n  Standard: ${config.copyright}, ${config.license}, ${config.year}`);
+    log(`  Done. Run \`wip-license-guard check\` to audit.\n`);
+    return config;
+  }
 
   if (existsSync(configPath)) {
     const existing = JSON.parse(readFileSync(configPath, 'utf8'));
@@ -77,6 +135,13 @@ async function init(repoPath) {
   const licenseText = generateLicense(config);
   writeFileSync(licensePath, licenseText);
   ok(`LICENSE file generated`);
+
+  // Generate CLA.md if it doesn't exist
+  const claPath = join(repoPath, 'CLA.md');
+  if (!existsSync(claPath)) {
+    writeFileSync(claPath, generateCLA());
+    ok(`CLA.md generated`);
+  }
 
   log(`\nDone. Run \`wip-license-guard check\` to audit.`);
   return config;
@@ -140,6 +205,20 @@ async function check(repoPath) {
         ok('LICENSE includes AGPLv3 terms');
       }
     }
+  }
+
+  // Check CLA.md
+  const claPath = join(repoPath, 'CLA.md');
+  if (!existsSync(claPath)) {
+    warn('CLA.md missing');
+    issues++;
+    if (FIX) {
+      writeFileSync(claPath, generateCLA());
+      ok('CLA.md created (--fix)');
+      issues--;
+    }
+  } else {
+    ok('CLA.md exists');
   }
 
   // Check README (license + structure standard)
@@ -253,12 +332,14 @@ if (command === 'init') {
   wip-license-guard
 
   Commands:
-    init [path]           Interactive setup. Asks license type, copyright, year.
-    check [path]          Audit repo against saved config. Exit 1 if issues found.
-    check --fix [path]    Auto-fix issues (update LICENSE files, wrong copyright).
-    help                  Show this help.
+    init [path]                Interactive setup. Asks license type, copyright, year.
+    init --from-standard       Apply WIP Computer defaults (MIT+AGPL, CLA, attribution).
+    check [path]               Audit repo against saved config. Exit 1 if issues found.
+    check --fix [path]         Auto-fix issues (update LICENSE files, wrong copyright).
+    help                       Show this help.
 
   On first run, if no config exists, check will offer to run init.
+  Use --from-standard for new WIP Computer repos (no prompts, just works).
 
   Config file: .license-guard.json (commit this to your repo)
   `);

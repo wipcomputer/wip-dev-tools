@@ -1,6 +1,6 @@
 ---
-name: WIP DevOps Toolbox
-version: 1.6.0
+name: WIP AI DevOps Toolbox
+version: 1.7.0
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
@@ -21,11 +21,11 @@ requires:
   binaries: [git, npm, gh, node]
 ---
 
-# WIP DevOps Toolbox
+# WIP AI DevOps Toolbox
 
 Your AI writes code. But does it know how to release it? Check license compliance? Protect your identity files? Sync private repos to public? Follow a real development process?
 
-DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shipping real software together.
+AI DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shipping real software together.
 
 ## What's Included
 
@@ -49,7 +49,7 @@ DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shippi
 One command installs everything a repo ships. CLI binaries, MCP servers, plugins, hooks. Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically.
 
 Install: `npm install -g @wipcomputer/universal-installer`
-Usage: `wip-install wipcomputer/wip-devops-toolbox`
+Usage: `wip-install wipcomputer/wip-ai-devops-toolbox`
 Docs: [README](tools/wip-universal-installer/README.md) | [SPEC](tools/wip-universal-installer/SPEC.md)
 
 ### wip-release
@@ -176,7 +176,7 @@ Example prompts your AI can act on directly:
 
 Install all tools with one command:
 ```bash
-wip-install wipcomputer/wip-devops-toolbox
+wip-install wipcomputer/wip-ai-devops-toolbox
 ```
 
 Or install individually:

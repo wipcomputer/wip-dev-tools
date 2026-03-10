@@ -1,6 +1,6 @@
 ###### WIP Computer
 
-[![npm](https://img.shields.io/npm/v/@wipcomputer/wip-repo-permissions-hook)](https://www.npmjs.com/package/@wipcomputer/wip-repo-permissions-hook) [![CLI / TUI](https://img.shields.io/badge/interface-CLI_/_TUI-black)](https://github.com/wipcomputer/wip-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/cli.js) [![MCP Server](https://img.shields.io/badge/interface-MCP_Server-black)](https://github.com/wipcomputer/wip-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/mcp-server.mjs) [![OpenClaw Plugin](https://img.shields.io/badge/interface-OpenClaw_Plugin-black)](https://github.com/wipcomputer/wip-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/openclaw.plugin.json) [![Claude Code Hook](https://img.shields.io/badge/interface-Claude_Code_Hook-black)](https://github.com/wipcomputer/wip-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/guard.mjs) [![Claude Code Skill](https://img.shields.io/badge/interface-Claude_Code_Skill-black)](https://github.com/wipcomputer/wip-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/SKILL.md) [![Universal Interface Spec](https://img.shields.io/badge/Universal_Interface_Spec-black?style=flat&color=black)](https://github.com/wipcomputer/wip-devops-toolbox/blob/main/tools/wip-universal-installer/SPEC.md)
+[![npm](https://img.shields.io/npm/v/@wipcomputer/wip-repo-permissions-hook)](https://www.npmjs.com/package/@wipcomputer/wip-repo-permissions-hook) [![CLI / TUI](https://img.shields.io/badge/interface-CLI_/_TUI-black)](https://github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/cli.js) [![MCP Server](https://img.shields.io/badge/interface-MCP_Server-black)](https://github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/mcp-server.mjs) [![OpenClaw Plugin](https://img.shields.io/badge/interface-OpenClaw_Plugin-black)](https://github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/openclaw.plugin.json) [![Claude Code Hook](https://img.shields.io/badge/interface-Claude_Code_Hook-black)](https://github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/guard.mjs) [![Claude Code Skill](https://img.shields.io/badge/interface-Claude_Code_Skill-black)](https://github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/tools/wip-repo-permissions-hook/SKILL.md) [![Universal Interface Spec](https://img.shields.io/badge/Universal_Interface_Spec-black?style=flat&color=black)](https://github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/tools/wip-universal-installer/SPEC.md)
 
 # wip-repo-permissions-hook
 
@@ -40,7 +40,7 @@ node cli.js check wipcomputer/wip-bridge
 node cli.js audit wipcomputer
 
 # Alias for check
-node cli.js can-publish wipcomputer/wip-devops-toolbox
+node cli.js can-publish wipcomputer/wip-ai-devops-toolbox
 ```
 
 ## Claude Code Setup

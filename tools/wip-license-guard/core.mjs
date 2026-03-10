@@ -136,6 +136,10 @@ MIT      All CLI tools, MCP servers, skills, and hooks (use anywhere, no restric
 AGPLv3   Commercial redistribution, marketplace listings, or bundling into paid services.
 \`\`\`
 
+Dual-license model designed to keep tools free while preventing commercial resellers.
+
 AGPLv3 for personal use is free. Commercial licenses available.
+
+Using these tools to build your own software is fine. Reselling the tools themselves is what requires a commercial license.
 ${attribution ? '\n' + attribution : ''}`;
 }

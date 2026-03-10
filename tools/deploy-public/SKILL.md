@@ -49,7 +49,7 @@ bash scripts/deploy-public.sh /path/to/private-repo org/public-repo
 bash scripts/deploy-public.sh /path/to/memory-crystal-private wipcomputer/memory-crystal
 
 # Deploy wip-dev-tools
-bash scripts/deploy-public.sh /path/to/wip-devops-toolbox-private wipcomputer/wip-devops-toolbox
+bash scripts/deploy-public.sh /path/to/wip-ai-devops-toolbox-private wipcomputer/wip-ai-devops-toolbox
 ```
 
 ## What It Does

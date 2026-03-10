@@ -1,12 +1,12 @@
 ###### WIP Computer
 
-# Dev Tools
+# AI DevOps Toolbox
 
 ## Want your AI to dev? Here's the full system.
 
 Your AI writes code. But does it know how to release it? Check license compliance? Sync private repos to public ones? Follow a real development process?
 
-**Dev Tools** is a collection of battle-tested tools for AI-assisted software development. Built by a team of humans and AIs shipping real software together.
+**AI DevOps Toolbox** is a collection of battle-tested tools for AI-assisted software development. Built by a team of humans and AIs shipping real software together.
 
 Used internally to manage 100+ repos, 200+ releases, and daily license compliance across the [wipcomputer](https://github.com/wipcomputer) org. These tools run in production every day.
 
@@ -19,10 +19,10 @@ Used internally to manage 100+ repos, 200+ releases, and daily license complianc
 npm install -g @wipcomputer/universal-installer
 
 # Preview what will be installed (9 tools, 30+ interfaces)
-wip-install wipcomputer/wip-devops-toolbox --dry-run
+wip-install wipcomputer/wip-ai-devops-toolbox --dry-run
 
 # Install everything
-wip-install wipcomputer/wip-devops-toolbox
+wip-install wipcomputer/wip-ai-devops-toolbox
 
 # Verify: run one check from each major category
 wip-license-guard check              # copyright compliance
@@ -265,7 +265,7 @@ node cli.js --dry-run patch --notes="test"
 Tell your AI:
 
 ```
-Read the SKILL.md at github.com/wipcomputer/wip-devops-toolbox/blob/main/SKILL.md.
+Read the SKILL.md at github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/SKILL.md.
 Then explain what these tools do and help me set them up.
 ```
 

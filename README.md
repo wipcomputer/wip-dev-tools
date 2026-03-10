@@ -40,7 +40,7 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 ### Setup & Onboarding
 
 **Universal Installer**
-- Teaches your AI to install anything you ship. One command deploys all six interfaces: CLI, MCP Server, OpenClaw Plugin, Skill, Claude Code Hook.
+- Teaches your AI to take anything you build and make it work across every AI interface. You write code in any language. This tool turns it into a CLI, MCP Server, OpenClaw Plugin, Skill, and Claude Code Hook. One command, all six interfaces.
 - Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically
 - **Interfaces:** CLI, Module, Skill
 - *Stable*
@@ -76,7 +76,7 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - [Read more about Private-to-Public Sync](tools/deploy-public/SKILL.md)
 
 **Post-Merge Branch Naming**
-- Clean up after itself. Merged branches get renamed with dates automatically.
+- Cleans up after itself. Merged branches get renamed with dates automatically.
 - Renames merged branches with `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list
 - **Interfaces:** CLI, Skill
 - *Stable*

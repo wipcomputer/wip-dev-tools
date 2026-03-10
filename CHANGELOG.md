@@ -3,6 +3,11 @@
 
 
 
+
+## 1.7.2 (2026-03-10)
+
+Reframe Universal Installer description, fix tense, update SKILL.md intro framing
+
 ## 1.7.1 (2026-03-10)
 
 Reframe tool descriptions with teach your AI pattern, file GPT and Grok feedback on v1.7.0

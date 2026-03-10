@@ -1,6 +1,6 @@
 ---
 name: WIP AI DevOps Toolbox
-version: 1.7.1
+version: 1.7.2
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
@@ -25,13 +25,13 @@ requires:
 
 Your AI writes code. But does it know how to release it? Check license compliance? Protect your identity files? Sync private repos to public? Follow a real development process?
 
-AI DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shipping real software together.
+AI DevOps Toolbox is 11 tools that teach your AI how to do all of this. Once installed, you don't run them manually. Your AI knows how to use them and does it automatically. Built by a team of humans and AIs shipping real software together.
 
 ## What's Included
 
 | Tool | What it does | Interfaces |
 |------|-------------|------------|
-| wip-universal-installer | One-command installer that auto-detects and deploys every interface | CLI, Module, Skill |
+| wip-universal-installer | Takes anything you build and makes it work across every AI interface. One command, all six interfaces | CLI, Module, Skill |
 | wip-release | One-command release (bump, changelog, SKILL.md sync, npm publish, GitHub) | CLI, Module, MCP, Skill |
 | wip-license-hook | Blocks license rug-pulls on dependencies and forks (pre-push/pre-pull) | CLI, Module, MCP, Skill |
 | wip-license-guard | Ensures your repos have correct copyright, LICENSE file, and license type | CLI, Module |
@@ -46,7 +46,7 @@ AI DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shi
 ## Tool Details
 
 ### wip-universal-installer
-One command installs everything a repo ships. CLI binaries, MCP servers, plugins, hooks. Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically.
+Takes anything you build and makes it work across every AI interface. You write code in any language. This tool turns it into a CLI, MCP Server, OpenClaw Plugin, Skill, and Claude Code Hook. One command, all six interfaces. Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically.
 
 Install: `npm install -g @wipcomputer/universal-installer`
 Usage: `wip-install wipcomputer/wip-ai-devops-toolbox`

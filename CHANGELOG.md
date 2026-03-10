@@ -4,6 +4,11 @@
 
 
 
+
+## 1.7.3 (2026-03-10)
+
+Add category structure to SKILL.md matching README. Prevents AI from miscategorizing tools.
+
 ## 1.7.2 (2026-03-10)
 
 Reframe Universal Installer description, fix tense, update SKILL.md intro framing

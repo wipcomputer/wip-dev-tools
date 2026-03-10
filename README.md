@@ -123,24 +123,24 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 
 ## Interface Coverage
 
-| Tool | CLI | Module | MCP | OpenClaw | Skill | CC Hook |
-|------|-----|--------|-----|----------|-------|---------|
-| **Setup & Onboarding** | | | | | | |
-| Universal Installer | Y | Y | - | - | Y | - |
-| Dev Guide | - | - | - | - | - | - |
-| **Infrastructure** | | | | | | |
-| LDM Dev Tools.app | - | - | - | - | - | - |
-| **Release & Deploy** | | | | | | |
-| Release Pipeline | Y | Y | Y | - | Y | - |
-| Private-to-Public Sync | Y | - | - | - | Y | - |
-| Post-Merge Branch Naming | Y | - | - | - | Y | - |
-| **License, Compliance, and Protection** | | | | | | |
-| Identity File Protection | Y | Y | - | Y | Y | Y |
-| License Guard | Y | Y | - | - | - | Y |
-| License Rug-Pull Detection | Y | Y | Y | - | Y | - |
-| **Repo Management** | | | | | | |
-| Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
-| Repo Manifest Reconciler | Y | Y | Y | - | Y | - |
+| # | Tool | CLI | Module | MCP | OpenClaw | Skill | CC Hook |
+|---|------|-----|--------|-----|----------|-------|---------|
+| | **Setup & Onboarding** | | | | | | |
+| 1 | Universal Installer | Y | Y | | | Y | |
+| 2 | Dev Guide | | | | | | |
+| | **Infrastructure** | | | | | | |
+| 3 | LDM Dev Tools.app | | | | | | |
+| | **Release & Deploy** | | | | | | |
+| 4 | Release Pipeline | Y | Y | Y | | Y | |
+| 5 | Private-to-Public Sync | Y | | | | Y | |
+| 6 | Post-Merge Branch Naming | Y | | | | Y | |
+| | **License, Compliance, and Protection** | | | | | | |
+| 7 | Identity File Protection | Y | Y | | Y | Y | Y |
+| 8 | License Guard | Y | Y | | | | Y |
+| 9 | License Rug-Pull Detection | Y | Y | Y | | Y | |
+| | **Repo Management** | | | | | | |
+| 10 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
+| 11 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
 
 ## More Info
 

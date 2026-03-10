@@ -50,6 +50,30 @@ let notes = flag('notes');
       }
     } catch {}
   }
+
+  // Auto-detect dev update from ai/dev-updates/ if notes are missing or thin
+  if (level && (!notes || notes.length < 100)) {
+    try {
+      const { readdirSync } = await import('node:fs');
+      const devUpdatesDir = join(process.cwd(), 'ai', 'dev-updates');
+      if (existsSync(devUpdatesDir)) {
+        const today = new Date().toISOString().split('T')[0];
+        const todayFiles = readdirSync(devUpdatesDir)
+          .filter(f => f.startsWith(today) && f.endsWith('.md'))
+          .sort()
+          .reverse();
+
+        if (todayFiles.length > 0) {
+          const devUpdatePath = join(devUpdatesDir, todayFiles[0]);
+          const devUpdateContent = readFileSync(devUpdatePath, 'utf8').trim();
+          if (devUpdateContent.length > (notes || '').length) {
+            notes = devUpdateContent;
+            console.log(`  ✓ Found dev update: ai/dev-updates/${todayFiles[0]}`);
+          }
+        }
+      }
+    } catch {}
+  }
 }
 
 if (!level || args.includes('--help') || args.includes('-h')) {
@@ -71,9 +95,11 @@ Flags:
   --no-publish             Bump + tag only, skip npm/GitHub
 
 Release notes:
-  Auto-detects RELEASE-NOTES-v{version}.md (e.g. RELEASE-NOTES-v1-6-0.md).
-  Write the file on your branch, review it in the PR, and wip-release
-  picks it up automatically on release day. No --notes-file needed.
+  Auto-detects notes from three sources (first match wins):
+  1. --notes-file=path          Explicit file path
+  2. RELEASE-NOTES-v{ver}.md    In repo root (e.g. RELEASE-NOTES-v1-7-4.md)
+  3. ai/dev-updates/YYYY-MM-DD* Today's dev update files (most recent first)
+  Write dev updates as you work. wip-release picks them up automatically.
 
 Pipeline:
   1. Bump package.json version

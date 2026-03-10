@@ -1,6 +1,6 @@
 ---
 name: WIP AI DevOps Toolbox
-version: 1.7.4
+version: 1.7.5
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
@@ -144,7 +144,18 @@ wip-release minor --notes="description"     # bump minor (1.0.0 -> 1.1.0)
 wip-release major --notes="description"     # bump major (1.0.0 -> 2.0.0)
 wip-release patch --dry-run                 # preview without changes
 wip-release patch --no-publish              # bump + tag only, skip npm/GitHub
+wip-release patch --notes-file=path         # read notes from a file
+wip-release patch                           # auto-detect notes (see below)
 ```
+
+**Release notes auto-detection (first match wins):**
+
+1. `--notes-file=path` ... explicit file path
+2. `RELEASE-NOTES-v{ver}.md` in repo root (e.g. `RELEASE-NOTES-v1-7-4.md`)
+3. `ai/dev-updates/YYYY-MM-DD*` ... today's dev update files (most recent first)
+4. `--notes="one-liner"` ... used as fallback, but if a dev update exists with more content, the dev update wins
+
+Write dev updates as you work. wip-release picks them up automatically. No more thin release notes.
 
 **What happens when you run `wip-release`:**
 
@@ -152,13 +163,13 @@ wip-release patch --no-publish              # bump + tag only, skip npm/GitHub
 2. **Step 1:** Bumps version in `package.json`
 3. **Step 2:** Syncs version to `SKILL.md` (if it exists)
 4. **Step 3:** Updates `CHANGELOG.md` with the new version entry
-5. **Step 4:** Looks for `RELEASE-NOTES-v*.md` on the current branch. If found, uses it for the GitHub release body. If not, uses the `--notes` string.
+5. **Step 4:** Auto-detects release notes from RELEASE-NOTES file, ai/dev-updates/, or --notes flag
 6. **Step 5:** Commits the version bump
 7. **Step 6:** Creates git tag `v{version}`
 8. **Step 7:** Pushes commit and tag to origin
 9. **Step 8:** Publishes to npm (if not `private: true`)
 10. **Step 9:** Publishes to GitHub Packages
-11. **Step 10:** Creates GitHub release with release notes
+11. **Step 10:** Creates GitHub release with release notes (full narrative, not one-liners)
 12. **Step 11:** Renames merged branches with `--merged-YYYY-MM-DD`
 13. **Step 12:** Prunes old merged branches (keeps last 3 per developer prefix)
 

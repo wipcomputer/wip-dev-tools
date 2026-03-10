@@ -7,6 +7,11 @@
 
 
 
+
+## 1.7.6 (2026-03-10)
+
+README: onboarding prompt now does dry-run install first so users see what changes before committing
+
 ## 1.7.5 (2026-03-10)
 
 # Dev Update: SKILL.md as the Real Interface

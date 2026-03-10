@@ -26,10 +26,13 @@ Then ask me:
 - Do you have more questions?
 - Do you want to install them?
 
-If I say yes, run: wip-install wipcomputer/wip-ai-devops-toolbox
+If I say yes, run: wip-install wipcomputer/wip-ai-devops-toolbox --dry-run
+
+Show me exactly what will change on my system. When I'm ready, I'll tell you
+to install for real.
 ```
 
-Your agent will read the repo, explain everything, and walk you through setup interactively.
+Your agent will read the repo, explain everything, and do a dry-run install first so you can see exactly what changes before anything is written to your system.
 
 ## AI DevOps Toolbox Features
 

@@ -4,7 +4,7 @@
 
 # DevOps Toolbox
 
-## Want your AI to dev? Here's the full system.
+## Want your AI to dev? Here's what's working for us at WIP Computer.
 
 Your AI writes code. But does it know how to release it? Check license compliance? Protect your identity files? Sync private repos to public? Follow a real development process?
 

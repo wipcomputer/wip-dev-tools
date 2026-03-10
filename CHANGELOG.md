@@ -5,6 +5,11 @@
 
 
 
+
+## 1.7.4 (2026-03-10)
+
+SKILL.md full operational rewrite for AI agents. Every tool now has complete commands, flags, step-by-step behavior, file paths, and safety notes. Interface Coverage table cleaned up: numbered tools, category dividers, no dashes.
+
 ## 1.7.3 (2026-03-10)
 
 Add category structure to SKILL.md matching README. Prevents AI from miscategorizing tools.

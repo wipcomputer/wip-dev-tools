@@ -1,6 +1,6 @@
 ---
 name: WIP AI DevOps Toolbox
-version: 1.7.7
+version: 1.7.8
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
@@ -26,6 +26,27 @@ requires:
 Your AI writes code. But does it know how to release it? Check license compliance? Protect your identity files? Sync private repos to public? Follow a real development process?
 
 AI DevOps Toolbox is 11 tools that teach your AI how to do all of this. Once installed, you don't run them manually. Your AI knows how to use them and does it automatically. Built by a team of humans and AIs shipping real software together.
+
+## Platform Compatibility
+
+The tools in this toolbox use different capabilities. Check what you have and tell the user honestly what you can and cannot do.
+
+**What each interface requires:**
+
+| Interface | Requires | Examples |
+|-----------|----------|----------|
+| CLI | Shell access (run bash/node commands) | `wip-release patch`, `wip-install` |
+| MCP Server | MCP client support | `release`, `license_scan`, `repos_check` |
+| CC Hook | Claude Code CLI with hooks support | PreToolUse hooks in `~/.claude/settings.json` |
+| OpenClaw Plugin | OpenClaw agent runtime | Plugin in `~/.openclaw/extensions/` |
+| Skill | Ability to read this file | You're doing it right now |
+| Module | Node.js import support | `import { release } from 'wip-release'` |
+
+**Built and tested on:**
+- **Claude Code CLI** ... full support (shell, MCP, CC Hooks)
+- **OpenClaw** ... full support (shell, MCP, Plugins)
+
+**How to assess your own platform:** Check which capabilities you have (shell access, MCP, hooks) and match them to the table above. If you can run shell commands, CLI tools work. If you can connect to MCP servers, MCP tools work. If you have neither, you can still read and explain the tools, but tell the user which commands to run themselves. Do not claim you can run commands you cannot execute.
 
 ## Operating Rules
 

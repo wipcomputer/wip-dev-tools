@@ -66,13 +66,29 @@ function updateRegistry(name, info) {
 // ── Install functions ──
 
 function installCLI(repoPath, door) {
+  const pkg = readJSON(join(repoPath, 'package.json'));
+  const binNames = typeof door.bin === 'string' ? [basename(repoPath)] : Object.keys(door.bin || {});
+  const newVersion = pkg?.version;
+
+  // Check if already installed at this version
+  if (newVersion && binNames.length > 0) {
+    try {
+      const installed = execSync(`npm list -g ${pkg.name} --json 2>/dev/null`, { encoding: 'utf8' });
+      const data = JSON.parse(installed);
+      const deps = data.dependencies || {};
+      if (deps[pkg.name]?.version === newVersion) {
+        skip(`CLI: ${binNames.join(', ')} already at v${newVersion}`);
+        return true;
+      }
+    } catch {}
+  }
+
   if (DRY_RUN) {
-    ok(`CLI: would install globally (dry run)`);
+    ok(`CLI: would install ${binNames.join(', ')} globally (dry run)`);
     return true;
   }
   try {
     execSync('npm install -g .', { cwd: repoPath, stdio: 'pipe' });
-    const binNames = typeof door.bin === 'string' ? [basename(repoPath)] : Object.keys(door.bin);
     ok(`CLI: ${binNames.join(', ')} installed globally`);
     return true;
   } catch (e) {
@@ -88,11 +104,36 @@ function installCLI(repoPath, door) {
 }
 
 function deployExtension(repoPath, name) {
-  // Deploy to LDM OS (primary)
   const ldmDest = join(LDM_EXTENSIONS, name);
+  const ocDest = join(OC_EXTENSIONS, name);
+
+  // Check if already deployed at the same version
+  const sourcePkg = readJSON(join(repoPath, 'package.json'));
+  const installedPkg = readJSON(join(ldmDest, 'package.json'));
+  const newVersion = sourcePkg?.version;
+  const currentVersion = installedPkg?.version;
+
+  if (newVersion && currentVersion && newVersion === currentVersion) {
+    skip(`LDM: ${name} already at v${currentVersion}`);
+    // Still check OpenClaw copy exists
+    if (existsSync(ocDest)) {
+      skip(`OpenClaw: ${name} already at v${currentVersion}`);
+    } else if (!DRY_RUN) {
+      // LDM has it but OpenClaw doesn't. Copy it over.
+      mkdirSync(ocDest, { recursive: true });
+      cpSync(ldmDest, ocDest, { recursive: true });
+      ok(`OpenClaw: deployed to ${ocDest} (synced from LDM)`);
+    }
+    return true;
+  }
+
   if (DRY_RUN) {
-    ok(`LDM: would deploy to ${ldmDest} (dry run)`);
-    ok(`OpenClaw: would deploy to ${join(OC_EXTENSIONS, name)} (dry run)`);
+    if (currentVersion) {
+      ok(`LDM: would upgrade ${name} v${currentVersion} -> v${newVersion} (dry run)`);
+    } else {
+      ok(`LDM: would deploy ${name} v${newVersion || 'unknown'} to ${ldmDest} (dry run)`);
+    }
+    ok(`OpenClaw: would deploy to ${ocDest} (dry run)`);
     return true;
   }
 
@@ -106,7 +147,11 @@ function deployExtension(repoPath, name) {
       recursive: true,
       filter: (src) => !src.includes('.git') && !src.includes('node_modules') && !src.includes('ai/')
     });
-    ok(`LDM: deployed to ${ldmDest}`);
+    if (currentVersion) {
+      ok(`LDM: upgraded ${name} v${currentVersion} -> v${newVersion}`);
+    } else {
+      ok(`LDM: deployed to ${ldmDest}`);
+    }
 
     // Install deps in LDM
     if (existsSync(join(ldmDest, 'package.json'))) {
@@ -119,8 +164,6 @@ function deployExtension(repoPath, name) {
     }
 
     // OpenClaw path (copy from LDM to keep them identical)
-    const ocDest = join(OC_EXTENSIONS, name);
-    // Remove existing OC copy to avoid src/dest collision
     if (existsSync(ocDest)) {
       execSync(`rm -rf "${ocDest}"`, { stdio: 'pipe' });
     }
@@ -149,42 +192,61 @@ function registerMCP(repoPath, door) {
   const ldmServerPath = join(LDM_EXTENSIONS, basename(repoPath), door.file);
   const mcpPath = existsSync(ldmServerPath) ? ldmServerPath : serverPath;
 
+  // Check if already registered with the same path
+  const ccMcpPath = join(HOME, '.claude', '.mcp.json');
+  const ccMcp = readJSON(ccMcpPath);
+  const ccAlreadyRegistered = ccMcp?.mcpServers?.[name]?.args?.includes(mcpPath);
+
+  let ocAlreadyRegistered = false;
+  if (existsSync(OC_MCP)) {
+    const ocMcp = readJSON(OC_MCP);
+    ocAlreadyRegistered = ocMcp?.mcpServers?.[name]?.args?.includes(mcpPath);
+  }
+
+  if (ccAlreadyRegistered && (ocAlreadyRegistered || !existsSync(OC_MCP))) {
+    skip(`MCP: ${name} already registered at ${mcpPath}`);
+    return true;
+  }
+
   if (DRY_RUN) {
-    ok(`MCP (CC): would register ${name} at user scope (dry run)`);
-    ok(`MCP (OC): would add to ${OC_MCP} (dry run)`);
+    if (!ccAlreadyRegistered) ok(`MCP (CC): would register ${name} at user scope (dry run)`);
+    if (!ocAlreadyRegistered && existsSync(OC_MCP)) ok(`MCP (OC): would add to ${OC_MCP} (dry run)`);
     return true;
   }
 
   // 1. Register with Claude Code CLI at user scope
-  let ccRegistered = false;
-  try {
-    // Remove first if exists (update behavior)
+  let ccRegistered = ccAlreadyRegistered;
+  if (!ccAlreadyRegistered) {
     try {
-      execSync(`claude mcp remove ${name} --scope user`, { stdio: 'pipe' });
-    } catch {}
-    const envFlag = existsSync(OC_ROOT) ? ` -e OPENCLAW_HOME="${OC_ROOT}"` : '';
-    execSync(`claude mcp add --scope user ${name}${envFlag} -- node "${mcpPath}"`, { stdio: 'pipe' });
-    ok(`MCP (CC): registered ${name} at user scope`);
-    ccRegistered = true;
-  } catch (e) {
-    // Fallback: write to ~/.claude/.mcp.json
-    try {
-      const ccMcpPath = join(HOME, '.claude', '.mcp.json');
-      const ccMcp = readJSON(ccMcpPath) || { mcpServers: {} };
-      ccMcp.mcpServers[name] = {
-        command: 'node',
-        args: [mcpPath],
-      };
-      writeJSON(ccMcpPath, ccMcp);
-      ok(`MCP (CC): registered ${name} in ~/.claude/.mcp.json (fallback)`);
+      // Remove first if exists (update behavior)
+      try {
+        execSync(`claude mcp remove ${name} --scope user`, { stdio: 'pipe' });
+      } catch {}
+      const envFlag = existsSync(OC_ROOT) ? ` -e OPENCLAW_HOME="${OC_ROOT}"` : '';
+      execSync(`claude mcp add --scope user ${name}${envFlag} -- node "${mcpPath}"`, { stdio: 'pipe' });
+      ok(`MCP (CC): registered ${name} at user scope`);
       ccRegistered = true;
-    } catch (e2) {
-      fail(`MCP (CC): registration failed. ${e.message}`);
+    } catch (e) {
+      // Fallback: write to ~/.claude/.mcp.json
+      try {
+        const mcpConfig = readJSON(ccMcpPath) || { mcpServers: {} };
+        mcpConfig.mcpServers[name] = {
+          command: 'node',
+          args: [mcpPath],
+        };
+        writeJSON(ccMcpPath, mcpConfig);
+        ok(`MCP (CC): registered ${name} in ~/.claude/.mcp.json (fallback)`);
+        ccRegistered = true;
+      } catch (e2) {
+        fail(`MCP (CC): registration failed. ${e.message}`);
+      }
     }
+  } else {
+    skip(`MCP (CC): ${name} already registered`);
   }
 
   // 2. Register in OpenClaw's .mcp.json (only if the file already exists)
-  if (existsSync(OC_MCP)) {
+  if (existsSync(OC_MCP) && !ocAlreadyRegistered) {
     try {
       const ocMcp = readJSON(OC_MCP) || { mcpServers: {} };
       ocMcp.mcpServers[name] = {
@@ -199,6 +261,8 @@ function registerMCP(repoPath, door) {
     } catch (e) {
       fail(`MCP (OC): registration failed. ${e.message}`);
     }
+  } else if (existsSync(OC_MCP) && ocAlreadyRegistered) {
+    skip(`MCP (OC): ${name} already registered`);
   }
 
   return ccRegistered;

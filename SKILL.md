@@ -1,7 +1,7 @@
 ---
-name: WIP Dev Tools
-version: 1.4.0
-description: Dev toolkit for AI-assisted software development. Release pipeline, license compliance, repo visibility guard, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
+name: WIP DevOps Toolbox
+version: 1.5.1
+description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
   - version-bump
@@ -10,20 +10,47 @@ capabilities:
   - github-release
   - license-scanning
   - license-compliance
+  - copyright-enforcement
   - repo-sync
   - repo-visibility-guard
+  - identity-file-protection
   - manifest-reconciliation
   - mcp-server
-interface: [cli, module, mcp, skill]
+interface: [cli, module, mcp, skill, hook, plugin]
 requires:
   binaries: [git, npm, gh, node]
 ---
 
-# WIP Dev Tools
+# WIP DevOps Toolbox
 
-A collection of tools for AI-assisted software development.
+Your AI writes code. But does it know how to release it? Check license compliance? Protect your identity files? Sync private repos to public? Follow a real development process?
+
+DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shipping real software together.
 
 ## What's Included
+
+| Tool | What it does | Interfaces |
+|------|-------------|------------|
+| wip-universal-installer | One-command installer that auto-detects and deploys every interface | CLI, Module, Skill |
+| wip-release | One-command release (bump, changelog, SKILL.md sync, npm publish, GitHub) | CLI, Module, MCP, Skill |
+| wip-license-hook | Blocks license rug-pulls on dependencies and forks (pre-push/pre-pull) | CLI, Module, MCP, Skill |
+| wip-license-guard | Ensures your repos have correct copyright, LICENSE file, and license type | CLI, Module |
+| wip-repo-permissions-hook | Never go public without a -private mirror (blocks accidental exposure) | CLI, Module, MCP, OpenClaw, Skill, CC Hook |
+| wip-file-guard | Protects CLAUDE.md, SHARED-CONTEXT.md, SOUL.md from being overwritten | CLI, Module, OpenClaw, Skill, CC Hook |
+| wip-repos | Repo manifest reconciler. Keeps your org structure matching the manifest | CLI, Module, MCP, Skill |
+| deploy-public | Syncs private repo to clean public mirror (auto-strips ai/ folder) | CLI, Skill |
+| post-merge-rename | Auto-renames merged branches with --merged-YYYY-MM-DD | CLI, Skill |
+| LDM Dev Tools.app | macOS scheduler for daily audits and backups | Standalone app |
+| Dev Guide | Best practices for AI-assisted development teams | Documentation |
+
+## Tool Details
+
+### wip-universal-installer
+One command installs everything a repo ships. CLI binaries, MCP servers, plugins, hooks. Detects what a repo supports and deploys it all. Toolbox mode walks every sub-tool automatically.
+
+Install: `npm install -g @wipcomputer/universal-installer`
+Usage: `wip-install wipcomputer/wip-devops-toolbox`
+Docs: [README](tools/wip-universal-installer/README.md) | [SPEC](tools/wip-universal-installer/SPEC.md)
 
 ### wip-release
 One-command release pipeline. Bumps version, updates changelog + SKILL.md, publishes to npm + GitHub Packages, creates GitHub release.
@@ -33,58 +60,60 @@ Usage: `wip-release patch --notes="description"`
 Docs: [README](tools/wip-release/README.md) | [REFERENCE](tools/wip-release/REFERENCE.md)
 
 ### wip-license-hook
-License rug-pull detection. Scans dependencies and forks for license changes. Git hooks block bad merges. Generates compliance dashboard.
+License rug-pull detection. Scans dependencies and forks for license changes. Git hooks block bad merges. Daily cron scan. Generates compliance dashboard.
 
 Install: `npm install -g @wipcomputer/wip-license-hook`
 Usage: `wip-license-hook scan`
 Docs: [README](tools/wip-license-hook/README.md)
 
+### wip-license-guard
+Copyright and license enforcement for your own repos. Interactive first-run setup asks what licensing you want. Subsequent runs audit and enforce. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues.
+
+Usage: `wip-license-guard check` or `wip-license-guard check --fix`
+Setup: `wip-license-guard init`
+Docs: [cli.mjs](tools/wip-license-guard/cli.mjs)
+
 ### wip-repo-permissions-hook
-Repo visibility guard. Blocks repos from going public without a `-private` counterpart. CLI, Claude Code hook, OpenClaw plugin.
+Repo visibility guard. Blocks repos from going public without a `-private` counterpart. Catches accidental exposure of internal plans, todos, and development context.
 
 Usage: `wip-repo-permissions check <org/repo>` or `wip-repo-permissions audit <org>`
 Docs: [README](tools/wip-repo-permissions-hook/README.md)
 
-### deploy-public.sh
-Private-to-public repo sync. Excludes `ai/` folder. Creates PR and merges.
-
-Usage: `bash scripts/deploy-public.sh <private-repo-path> <public-github-repo>`
-
-### post-merge-rename.sh
-Post-merge branch renaming. Scans for merged branches, appends `--merged-YYYY-MM-DD`.
-
-Usage: `bash scripts/post-merge-rename.sh` (scan + rename all) or `--dry-run` (preview)
-
-### Dev Guide
-Best practices for AI development teams: release process, repo structure, `ai/` folder convention, branch protection, private/public patterns, post-merge branch renaming, repo directory structure, Cloudflare deploy guards.
-
-Read: [DEV-GUIDE.md](DEV-GUIDE-GENERAL-PUBLIC.md)
-
 ### wip-file-guard
-Identity file protection. Blocks destructive edits to CLAUDE.md, SHARED-CONTEXT.md, SOUL.md, and other protected files. Claude Code hook and OpenClaw plugin.
+Identity file protection. Blocks destructive edits to CLAUDE.md, SHARED-CONTEXT.md, SOUL.md, MEMORY.md. Your AI can read them but can't blow them away.
 
 Usage: `wip-file-guard --list`
 Docs: [README](tools/wip-file-guard/README.md)
 
-### wip-universal-installer
-The Universal Interface specification for agent-native software. Detects and installs six interfaces: CLI, Module, MCP Server, OpenClaw Plugin, Skill, Claude Code Hook.
-
-Install: `npm install -g @wipcomputer/universal-installer`
-Usage: `wip-install /path/to/tool --dry-run`
-Docs: [README](tools/wip-universal-installer/README.md) | [SPEC](UNIVERSAL-INTERFACE.md)
-
 ### wip-repos
-Repo manifest reconciler. Makes `repos-manifest.json` the single source of truth. Check, sync, add, move, tree.
+Repo manifest reconciler. Makes `repos-manifest.json` the single source of truth. Like prettier for folder structure. Move folders around all day; on sync, everything snaps back.
 
 Install: `npm install -g @wipcomputer/wip-repos`
 Usage: `wip-repos check` or `wip-repos sync --dry-run`
 Docs: [README](tools/wip-repos/README.md)
 
+### deploy-public
+Private-to-public repo sync. Excludes `ai/` folder automatically. Creates PR, merges it, syncs release notes, cleans up branches.
+
+Usage: `bash tools/deploy-public/deploy-public.sh <private-repo-path> <public-github-repo>`
+Docs: [SKILL](tools/deploy-public/SKILL.md)
+
+### post-merge-rename
+Post-merge branch renaming. Scans for merged branches, appends `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list.
+
+Usage: `bash tools/post-merge-rename/post-merge-rename.sh` or `--dry-run`
+Docs: [SKILL](tools/post-merge-rename/SKILL.md)
+
 ### LDM Dev Tools.app
-macOS automation wrapper. Scheduled jobs (backup, branch protection audit, visibility audit) with Full Disk Access.
+macOS automation wrapper. A native .app bundle that runs scheduled jobs (backup, branch protection audit, visibility audit) with Full Disk Access.
 
 Usage: `open -W ~/Applications/LDMDevTools.app --args backup`
 Docs: [README](tools/ldm-jobs/README.md)
+
+### Dev Guide
+Best practices for AI-assisted development teams. Covers release process, repo structure, branch protection, the `ai/` folder convention, private/public patterns, and more.
+
+Read: [DEV-GUIDE.md](DEV-GUIDE-GENERAL-PUBLIC.md)
 
 ## MCP Servers
 
@@ -115,12 +144,23 @@ MCP tools available: `release`, `release_status`, `license_scan`, `license_audit
 
 ## Setup
 
-To install all tools:
+Install all tools with one command:
 ```bash
-npm install -g @wipcomputer/wip-release @wipcomputer/wip-license-hook
+wip-install wipcomputer/wip-devops-toolbox
 ```
 
-For the deploy script, clone this repo and run it directly:
+Or install individually:
 ```bash
-bash scripts/deploy-public.sh /path/to/private-repo org/public-repo
+npm install -g @wipcomputer/wip-release @wipcomputer/wip-license-hook @wipcomputer/universal-installer @wipcomputer/wip-repos
 ```
+
+## License
+
+```
+MIT      All CLI tools, MCP servers, skills, and hooks (use anywhere, no restrictions).
+AGPLv3   Commercial redistribution, marketplace listings, or bundling into paid services.
+```
+
+AGPLv3 for personal use is free. Commercial licenses available.
+
+Built by Parker Todd Brooks, Lēsa (OpenClaw, Claude Opus 4.6), Claude Code (Claude Opus 4.6).

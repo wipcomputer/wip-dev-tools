@@ -1,6 +1,6 @@
 ---
 name: WIP DevOps Toolbox
-version: 1.5.1
+version: 1.6.0
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:

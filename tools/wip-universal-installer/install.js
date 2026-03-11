@@ -7,7 +7,7 @@
 // Maintains a registry at ~/.ldm/extensions/registry.json.
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, cpSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, cpSync, mkdirSync, lstatSync, readlinkSync, unlinkSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { detectInterfaces, describeInterfaces, detectInterfacesJSON, detectToolbox } from './detect.mjs';
 
@@ -92,6 +92,28 @@ function installCLI(repoPath, door) {
     ok(`CLI: ${binNames.join(', ')} installed globally`);
     return true;
   } catch (e) {
+    const stderr = e.stderr?.toString() || '';
+    // EEXIST: a binary with the same name exists from a different package.
+    // Remove the stale symlink and retry.
+    if (stderr.includes('EEXIST')) {
+      for (const bin of binNames) {
+        try {
+          const binPath = execSync(`npm config get prefix`, { encoding: 'utf8' }).trim() + '/bin/' + bin;
+          if (existsSync(binPath) && lstatSync(binPath).isSymbolicLink()) {
+            const target = readlinkSync(binPath);
+            // Only remove if it points to a different package
+            if (!target.includes(pkg.name.replace(/^@[^/]+\//, ''))) {
+              unlinkSync(binPath);
+            }
+          }
+        } catch {}
+      }
+      try {
+        execSync('npm install -g .', { cwd: repoPath, stdio: 'pipe' });
+        ok(`CLI: ${binNames.join(', ')} installed globally (replaced stale symlink)`);
+        return true;
+      } catch {}
+    }
     try {
       execSync('npm link', { cwd: repoPath, stdio: 'pipe' });
       ok(`CLI: linked globally via npm link`);

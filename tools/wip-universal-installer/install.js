@@ -277,6 +277,13 @@ function installClaudeCodeHook(repoPath, door) {
     return false;
   }
 
+  // Always use the installed extension path, never repo clones or /tmp/
+  const toolName = basename(repoPath);
+  const installedGuard = join(LDM_EXTENSIONS, toolName, 'guard.mjs');
+  const hookCommand = existsSync(installedGuard)
+    ? `node ${installedGuard}`
+    : (door.command || `node "${join(repoPath, 'guard.mjs')}"`);
+
   if (DRY_RUN) {
     ok(`Claude Code: would add ${door.event || 'PreToolUse'} hook (dry run)`);
     return true;
@@ -287,14 +294,33 @@ function installClaudeCodeHook(repoPath, door) {
 
   if (!settings.hooks[event]) settings.hooks[event] = [];
 
-  const hookCommand = door.command || `node "${join(repoPath, 'guard.mjs')}"`;
-  const existing = settings.hooks[event].some(entry =>
-    entry.hooks?.some(h => h.command === hookCommand)
+  // Match by tool name in the command path, not exact string.
+  // This prevents duplicates when the same tool is installed from different paths.
+  const guardFile = basename(door.command || 'guard.mjs').replace(/^node\s+/, '').replace(/"/g, '');
+  const existingIdx = settings.hooks[event].findIndex(entry =>
+    entry.hooks?.some(h => {
+      const cmd = h.command || '';
+      return cmd.includes(`/${toolName}/`) || cmd === hookCommand;
+    })
   );
 
-  if (existing) {
-    skip(`Claude Code: ${event} hook already configured`);
-    return true;
+  if (existingIdx !== -1) {
+    const existingCmd = settings.hooks[event][existingIdx].hooks?.[0]?.command || '';
+    if (existingCmd === hookCommand) {
+      skip(`Claude Code: ${event} hook already configured`);
+      return true;
+    }
+    // Update the existing hook to point to the installed location
+    settings.hooks[event][existingIdx].hooks[0].command = hookCommand;
+    settings.hooks[event][existingIdx].hooks[0].timeout = door.timeout || 10;
+    try {
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+      ok(`Claude Code: ${event} hook updated to installed path`);
+      return true;
+    } catch (e) {
+      fail(`Claude Code: failed to update settings.json. ${e.message}`);
+      return false;
+    }
   }
 
   settings.hooks[event].push({

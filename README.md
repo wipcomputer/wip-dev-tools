@@ -36,7 +36,7 @@ Your agent will read the repo, explain everything, and do a dry-run install firs
 
 ## AI DevOps Toolbox Features
 
-Every tool ships as one or more **interfaces:** the ways you and your AI can use it. **CLI** runs in your terminal. **Module** imports into your code. **MCP** connects to any AI that supports Model Context Protocol. **OpenClaw** plugs into the OpenClaw agent platform. **Skill** teaches your AI how to use the tool via a SKILL.md prompt. **CC Hook** runs automatically inside Claude Code on specific events.
+Every tool ships as one or more **interfaces:** the ways you and your AI can use it. **CLI** runs in your terminal. **Module** imports into your code. **MCP** connects to any AI that supports Model Context Protocol. **OC Plugin** plugs into the OpenClaw agent platform. **Skill** teaches your AI how to use the tool via a SKILL.md file (works in both Claude Code and OpenClaw). **CC Hook** runs automatically inside Claude Code on specific events.
 
 As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"Apps are for people. Tools are for LLMs, and increasingly, LLMs are the ones using software."*
 
@@ -97,7 +97,7 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 **License Guard**
 - Enforce licensing on every commit. Copyright, dual-license, CLA. Checked automatically.
 - Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues
-- **Interfaces:** CLI, Module, CC Hook
+- **Interfaces:** CLI
 - *Beta*
 - [Read more about License Guard](tools/wip-license-guard/cli.mjs)
 
@@ -124,10 +124,24 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - *Stable*
 - [Read more about Repo Manifest](tools/wip-repos/README.md)
 
+**Repo Init**
+- Scaffold the standard `ai/` directory in any repo. Plans, notes, ideas, dev updates, todos. One command.
+- New repo: creates the full structure. Existing repo: moves old `ai/` contents to `ai/_sort/ai_old/` so you can sort at your own pace. Nothing is deleted.
+- **Interfaces:** CLI, Skill
+- *Stable*
+- [Read more about Repo Init](tools/ai-dir-template/SKILL.md)
+
+**README Formatter**
+- Generate or validate READMEs that follow the WIP Computer standard. Badges, title, tagline, "Teach Your AI" block, features, interface coverage table, license.
+- Generates separate section files (README-init-badges.md, README-init-features.md, etc.) so you can edit any section independently. Deploy assembles them into the final README. Same pattern as release notes: staging, review, deploy.
+- **Interfaces:** CLI, Skill
+- *Beta*
+- [Read more about README Formatter](tools/wip-readme-format/SKILL.md)
+
 ## Interface Coverage
 
-| # | Tool | CLI | Module | MCP | OpenClaw | Skill | CC Hook |
-|---|------|-----|--------|-----|----------|-------|---------|
+| # | Tool | CLI | Module | MCP | OC Plugin | Skill | CC Hook |
+|---|------|-----|--------|-----|-----------|-------|---------|
 | | **Setup & Onboarding** | | | | | | |
 | 1 | Universal Installer | Y | Y | | | Y | |
 | 2 | Dev Guide | | | | | | |
@@ -139,11 +153,13 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 | 6 | Post-Merge Branch Naming | Y | | | | Y | |
 | | **License, Compliance, and Protection** | | | | | | |
 | 7 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 8 | License Guard | Y | Y | | | | Y |
+| 8 | License Guard | Y | | | | | |
 | 9 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
 | 10 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
 | 11 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 12 | Repo Init | Y | | | | Y | |
+| 13 | README Formatter | Y | | | | Y | |
 
 ## More Info
 

@@ -1,5 +1,5 @@
 ---
-name: wip-repos
+name: Repo Manifest Reconciler
 version: 0.1.0
 description: Repo manifest reconciler. Makes repos-manifest.json the single source of truth for repo organization.
 author: Parker Todd Brooks

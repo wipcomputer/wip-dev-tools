@@ -1,5 +1,7 @@
 # Dev Guide ... Best Practices for AI-Assisted Development
 
+**WIP team members: also read [the private Dev Guide](ai/DEV-GUIDE-FOR-WIP-ONLY-PRIVATE.md).** It covers WIP-specific conventions (branch prefixes, agent IDs, deploy paths, incidents) that supplement everything below. Neither guide is complete without the other.
+
 ## Repo Structure Convention
 
 Every project follows this split:
@@ -37,13 +39,14 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 ```
 1. Create feature branch:  git checkout -b <prefix>/<feature>
 2. Make changes, commit
-3. Push branch:            git push -u origin <prefix>/<feature>
-4. Create PR:              gh pr create --title "..." --body "..."
-5. Merge PR:               gh pr merge <number> --merge
-6. Rename merged branch:   (see Post-Merge Branch Rename below)
-7. Pull merged main:       git checkout main && git pull origin main
-8. Release:                wip-release patch --notes="description"
-                           # or: wip-release minor / wip-release major
+3. Write release notes:    RELEASE-NOTES-v{next-version}.md (see below)
+4. Push branch:            git push -u origin <prefix>/<feature>
+5. Create PR:              gh pr create --title "..." --body "..."
+6. Merge PR:               gh pr merge <number> --merge
+7. Rename merged branch:   (see Post-Merge Branch Rename below)
+8. Pull merged main:       git checkout main && git pull origin main
+9. Release:                wip-release patch
+                           # wip-release auto-detects the RELEASE-NOTES file
                            # flags: --dry-run (preview), --no-publish (bump + tag only)
 ```
 
@@ -53,6 +56,29 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 - **Never delete branches.** Branches are history. They tell the story of what was built and when. After merging, rename them (see below). Never `git branch -D` or `git push --delete` without renaming first.
 - **Never use `--no-publish` before deploying to public.** `deploy-public.sh` pulls release notes from the private repo's GitHub release. If you skip the release with `--no-publish`, the public repo gets empty notes. Run the full pipeline first.
 - After merging, switch back to your dev branch. Don't sit on main.
+
+### Release Notes on the Branch
+
+**Every PR must include a `RELEASE-NOTES-v{next-version}.md` file.** This is how release notes get reviewed before publishing. Same pattern as code review: the notes are on the branch, visible in the PR, reviewed alongside the changes.
+
+**How it works:**
+
+1. Figure out the next version. Current is v0.7.2, this is a patch, so next is v0.7.3.
+2. Create `RELEASE-NOTES-v0-7-3.md` in the repo root. **Dashes, not dots** in the filename.
+3. Write the summary: what changed, why it matters, what it fixes. Narrative, not a changelog.
+4. Commit it with the rest of your changes. It ships with the branch.
+5. The PR now shows code changes AND release notes. Both get reviewed.
+6. After merge, `wip-release patch` auto-detects the file and uses it as the release summary.
+7. After release, `wip-release` moves the file to `ai/_trash/` automatically.
+
+**The file is the summary paragraph.** `wip-release` builds the full structured release (Changes, Fixes, Docs, Files changed, Install, Attribution, Changelog) from git history. Your file provides the human-written context at the top.
+
+**Three-source priority** (first match wins):
+1. `--notes-file=path` ... explicit file path via CLI flag
+2. `RELEASE-NOTES-v{ver}.md` ... auto-detected from repo root (this is the standard)
+3. `ai/dev-updates/` ... today's dev update files (fallback only)
+
+**If no release notes file exists,** `wip-release` falls back to `--notes="..."` or dev updates. But the standard is: write the file, commit it, review it in the PR. Don't skip this.
 
 ### Post-Merge Branch Rename
 

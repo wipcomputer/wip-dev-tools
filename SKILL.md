@@ -1,6 +1,6 @@
 ---
 name: WIP AI DevOps Toolbox
-version: 1.8.2
+version: 1.9.0
 description: Complete DevOps toolkit for AI-assisted software development. Release pipeline, license compliance, copyright enforcement, repo visibility guard, identity file protection, manifest reconciler, and best practices. All core tools are agent-callable via MCP.
 category: dev-tools
 capabilities:
@@ -25,7 +25,7 @@ requires:
 
 Your AI writes code. But does it know how to release it? Check license compliance? Protect your identity files? Sync private repos to public? Follow a real development process?
 
-AI DevOps Toolbox is 11 tools that teach your AI how to do all of this. Once installed, you don't run them manually. Your AI knows how to use them and does it automatically. Built by a team of humans and AIs shipping real software together.
+AI DevOps Toolbox is 13 tools that teach your AI how to do all of this. Once installed, you don't run them manually. Your AI knows how to use them and does it automatically. Built by a team of humans and AIs shipping real software together.
 
 ## Platform Compatibility
 
@@ -36,11 +36,11 @@ The tools in this toolbox use different capabilities. Check what you have and te
 | Interface | Requires | Examples |
 |-----------|----------|----------|
 | CLI | Shell access (run bash/node commands) | `wip-release patch`, `wip-install` |
-| MCP Server | MCP client support | `release`, `license_scan`, `repos_check` |
-| CC Hook | Claude Code CLI with hooks support | PreToolUse hooks in `~/.claude/settings.json` |
-| OpenClaw Plugin | OpenClaw agent runtime | Plugin in `~/.openclaw/extensions/` |
-| Skill | Ability to read this file | You're doing it right now |
 | Module | Node.js import support | `import { release } from 'wip-release'` |
+| MCP | MCP client support | `release`, `license_scan`, `repos_check` |
+| OC Plugin | OpenClaw agent runtime | Plugin in `~/.openclaw/extensions/` |
+| Skill | SKILL.md file (works in both CC and OpenClaw) | You're reading it right now |
+| CC Hook | Claude Code CLI with hooks support | PreToolUse hooks in `~/.claude/settings.json` |
 
 **Built and tested on:**
 - **Claude Code CLI** ... full support (shell, MCP, CC Hooks)
@@ -101,7 +101,7 @@ wip-install --json /path/to/repo                     # output detection as JSON
 | Module | Confirms importable. No extra deployment needed | Already available via npm |
 | MCP Server | Registers via `claude mcp add --scope user`. Also adds to OpenClaw's `.mcp.json` if it exists | `~/.claude/` (user scope) and `~/.openclaw/.mcp.json` |
 | OpenClaw Plugin | Copies to `~/.ldm/extensions/<name>/` and `~/.openclaw/extensions/<name>/`. Runs `npm install --omit=dev`. **Removes existing directory first for a clean copy** | `~/.ldm/extensions/` and `~/.openclaw/extensions/` |
-| Skill | No deployment. SKILL.md stays in the repo. You read it | No writes |
+| Skill | Copies SKILL.md to OpenClaw's skill directory so both CC and OpenClaw can use it | `~/.openclaw/skills/<tool>/SKILL.md` |
 | CC Hook | Adds a PreToolUse hook entry to Claude Code settings. Checks for duplicates first | `~/.claude/settings.json` |
 
 5. Updates the extension registry at `~/.ldm/extensions/registry.json`
@@ -332,9 +332,6 @@ wip-license-guard init --from-standard   # apply WIP Computer defaults without p
 
 **Config:** `.license-guard.json` in repo root. Created by `init`. Contains copyright holder, license type, year, and what to enforce.
 
-**As a CC Hook (automatic):**
-Intercepts `git commit` and `git push` commands in Claude Code. Runs all checks before allowing the commit. Blocks if any check fails.
-
 **As a wip-release gate:**
 Step 0 of wip-release reads `.license-guard.json` and runs the same checks. Aborts the release if compliance fails.
 
@@ -345,7 +342,7 @@ Step 0 of wip-release reads `.license-guard.json` and runs the same checks. Abor
 
 **Where it writes:** `.license-guard.json`, `LICENSE`, `CLA.md`, README (with `--fix`)
 
-**Interfaces:** CLI, Module, CC Hook
+**Interfaces:** CLI
 
 ### wip-license-hook
 
@@ -433,6 +430,88 @@ wip-repos tree                           # show the manifest as a tree
 
 **Interfaces:** CLI, Module, MCP, Skill
 
+### wip-repo-init
+
+Scaffold the standard `ai/` directory in any repo. One command.
+
+**Commands:**
+```
+wip-repo-init /path/to/repo              # scaffold ai/ in a repo
+wip-repo-init /path/to/repo --dry-run    # preview without changes
+wip-repo-init /path/to/repo --yes        # skip confirmation prompt
+```
+
+**What happens:**
+
+**New repo (no ai/ folder):** Creates the full standard structure with READMEs explaining what goes where.
+
+**Existing repo (ai/ folder exists):** Shows you what will happen and asks for confirmation:
+1. Moves your current `ai/` contents to `ai/_sort/ai_old/`
+2. Scaffolds the new standard structure
+3. You sort files from `ai_old/` into the new structure at your own pace
+
+Nothing is deleted. Your old files are all in `ai/_sort/ai_old/`.
+
+**The standard structure:**
+
+```
+ai/
+  read-me-first.md          <- explains everything, links to all sections
+  _sort/                    <- holding pen for files that need sorting
+  _trash/                   <- archive (never delete, move here)
+  dev-updates/              <- engineering changelog, auto-detected by wip-release
+  product/
+    readme-first-product.md <- the product bible
+    notes/                  <- freeform notes, research
+    plans-prds/             <- plans with lifecycle stages
+      roadmap.md            <- prioritized roadmap
+      current/              <- plans being built now
+      upcoming/             <- plans that are next
+      archive-complete/     <- plans that shipped
+      todos/                <- per-agent todo files
+    product-ideas/          <- ideas that aren't plans yet
+```
+
+Every folder has a `_trash/` subfolder. Every section has a README.
+
+**Where it writes:** Creates directories and files inside `ai/`. If an existing `ai/` is present, moves it to `ai/_sort/ai_old/`.
+
+**Interfaces:** CLI, Skill
+
+### wip-readme-format
+
+Generate or validate READMEs following the WIP Computer standard. One command.
+
+**Commands:**
+```
+wip-readme-format /path/to/repo              # generate README-init-*.md section files
+wip-readme-format /path/to/repo --deploy     # assemble sections into README.md
+wip-readme-format /path/to/repo --dry-run    # preview without writing
+wip-readme-format /path/to/repo --check      # validate existing README against standard
+```
+
+**What happens:**
+
+**Generate mode (default):** Detects interfaces, reads SKILL.md for tool names, generates separate section files:
+- `README-init-badges.md` ... org header + interface badges
+- `README-init-title.md` ... title + tagline
+- `README-init-teach.md` ... "Teach Your AI" onboarding block
+- `README-init-features.md` ... features list (preserved from existing README or auto-generated for toolbox repos)
+- `README-init-coverage.md` ... interface coverage table (toolbox repos only)
+- `README-init-more-info.md` ... links to docs
+- `README-init-license.md` ... license block + built-by line
+- `README-init-technical.md` ... technical content extracted from old README
+
+**Deploy mode:** Backs up existing README.md and TECHNICAL.md to `ai/_trash/`, assembles section files in order into README.md, moves technical to TECHNICAL.md, deletes the staging files.
+
+Edit any section independently before deploying. Same pattern as release notes: staging, review, deploy.
+
+**Toolbox mode:** For repos with `tools/` subdirectories, aggregates interfaces from all sub-tools for badges, generates an interface coverage table using SKILL.md `name:` frontmatter for human-readable names.
+
+**Where it writes:** README-init-*.md files in the repo root (staging). On deploy: README.md, TECHNICAL.md, and backups to `ai/_trash/`.
+
+**Interfaces:** CLI, Skill
+
 ---
 
 ## MCP Server Configuration
@@ -495,8 +574,8 @@ Tools with MCP interfaces are agent-callable. Add to `.mcp.json`:
 
 ## Interface Coverage
 
-| # | Tool | CLI | Module | MCP | OpenClaw | Skill | CC Hook |
-|---|------|-----|--------|-----|----------|-------|---------|
+| # | Tool | CLI | Module | MCP | OC Plugin | Skill | CC Hook |
+|---|------|-----|--------|-----|-----------|-------|---------|
 | | **Setup & Onboarding** | | | | | | |
 | 1 | Universal Installer | Y | Y | | | Y | |
 | 2 | Dev Guide | | | | | | |
@@ -508,11 +587,13 @@ Tools with MCP interfaces are agent-callable. Add to `.mcp.json`:
 | 6 | Post-Merge Branch Naming | Y | | | | Y | |
 | | **License, Compliance, and Protection** | | | | | | |
 | 7 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 8 | License Guard | Y | Y | | | | Y |
+| 8 | License Guard | Y | | | | | |
 | 9 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
 | 10 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
 | 11 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 12 | Repo Init | Y | | | | Y | |
+| 13 | README Formatter | Y | | | | Y | |
 
 ---
 

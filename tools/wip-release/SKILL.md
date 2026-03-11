@@ -1,5 +1,5 @@
 ---
-name: WIP.release
+name: Release Pipeline
 version: 1.2.4
 description: One-command release pipeline. Bumps version, updates changelog + SKILL.md, publishes to npm + GitHub.
 homepage: https://github.com/wipcomputer/wip-release

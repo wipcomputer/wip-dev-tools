@@ -14,6 +14,11 @@
 
 
 
+
+## 1.9.0 (2026-03-11)
+
+README Formatter (section-based staging + deploy), Repo Init (ai/ directory scaffolding), Dev Guide overhaul with release notes workflow
+
 ## 1.8.2 (2026-03-11)
 
 # v1.8.2: Clean up release notes after release

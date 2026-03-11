@@ -1,5 +1,5 @@
 ---
-name: post-merge-rename
+name: Post-Merge Branch Naming
 version: 1.3.0
 description: Post-merge branch renaming. Appends --merged-YYYY-MM-DD to preserve history.
 author: Parker Todd Brooks

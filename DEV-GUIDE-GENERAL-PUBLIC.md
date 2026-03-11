@@ -398,6 +398,73 @@ One file per person/agent. Named `{Name}-todo.md`. Lives in `ai/todos/`.
 
 Add more as agents or team members are added.
 
+### GitHub Issues
+
+**Use GitHub Issues for actionable bugs, feature requests, and tasks.** The `ai/todos/` files are for rough planning and brainstorming. Once something becomes a concrete action item, it goes on GitHub.
+
+**Why both?** Todos are quick, local, and low-friction. Issues are trackable, cross-referenceable, and visible to all agents and humans. Todos are where you think. Issues are where you commit to doing.
+
+#### Filing Convention
+
+Every issue filed by an agent must include:
+
+1. **Attribution line** at the top of the body:
+   ```
+   > Filed by: <agent-name> (<agent-id>) on <YYYY-MM-DD>
+   ```
+
+2. **`filed-by` label** identifying the author:
+   ```
+   filed-by:<agent-id>
+   ```
+   This makes issues filterable by who created them. Create these labels per-agent on every repo in the org.
+
+3. **Clear problem/solution structure.** State what's wrong, then what should change.
+
+#### When to use issues vs todos
+
+| Use | When |
+|-----|------|
+| GitHub Issue | Bug, feature request, task with a clear definition of done |
+| `ai/todos/` | Brainstorming, rough planning, "we should think about..." |
+| Both | Start in todos, promote to issue when it's concrete |
+
+#### Public vs Private Issues
+
+For repos following the public/private pattern:
+
+- **Public repo issues** are for users. Someone installs your tool, finds a bug, files an issue on the public repo. Triage and respond there.
+- **Private repo issues** are for the team. Internal work, architecture decisions, agent coordination.
+
+**When a public issue needs internal work:**
+1. Respond on the public issue ("Looking into this")
+2. Open a private issue with the full context, link back (`Public: org/repo#42`)
+3. Fix in private, release, deploy to public
+4. Close the public issue with the version (`Fixed in v0.5.0`)
+
+**When you find a bug internally:**
+1. File on the private repo
+2. Fix, release, deploy
+3. No public issue needed unless it's worth announcing
+
+The release is what connects public and private. No issue syncing, no mirroring. Public issues are the front door. Private issues are the workshop.
+
+#### Agent ID Convention
+
+Agents are identified by a structured ID that encodes platform, name, and machine:
+
+```
+[platform]-[agent]-[machine]
+```
+
+Examples: `oc-lesa-mini` (OpenClaw, Lesa, on mini), `cc-mini` (Claude Code, on mini), `cc-air` (Claude Code, on air).
+
+This ID is used in:
+- GitHub issue labels (`filed-by:*`)
+- Memory systems (agent_id field)
+- LDM agent config (`~/.ldm/agents/<id>/config.json`)
+- Git branch prefixes
+
 ## Branch Protection
 
 All repos should have branch protection on `main` with `enforce_admins=true`. This means:

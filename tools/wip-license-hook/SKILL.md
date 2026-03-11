@@ -1,5 +1,5 @@
 ---
-name: wip-license-hook
+name: License Rug-Pull Detection
 description: License rug-pull detection. Scans dependencies and forks for license changes, gates upstream merges, maintains a license ledger, and generates a public compliance dashboard. Use when checking dependency licenses, before merging upstream, or for daily license health scans.
 version: 1.0.0
 interface: [cli, mcp]

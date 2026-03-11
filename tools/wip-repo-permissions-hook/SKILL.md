@@ -1,5 +1,5 @@
 ---
-name: wip-repo-permissions
+name: Repo Visibility Guard
 version: 1.0.0
 description: Repo visibility guard. Blocks repos from going public without a -private counterpart.
 author: Parker Todd Brooks

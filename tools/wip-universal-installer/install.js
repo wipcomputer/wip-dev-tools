@@ -364,6 +364,39 @@ function installClaudeCodeHook(repoPath, door) {
   }
 }
 
+function installSkill(repoPath, toolName) {
+  const skillSrc = join(repoPath, 'SKILL.md');
+  const ocSkillDir = join(OC_ROOT, 'skills', toolName);
+  const ocSkillDest = join(ocSkillDir, 'SKILL.md');
+
+  // Check if already deployed with same content
+  if (existsSync(ocSkillDest)) {
+    try {
+      const srcContent = readFileSync(skillSrc, 'utf8');
+      const destContent = readFileSync(ocSkillDest, 'utf8');
+      if (srcContent === destContent) {
+        skip(`Skill: ${toolName} already deployed to OpenClaw`);
+        return true;
+      }
+    } catch {}
+  }
+
+  if (DRY_RUN) {
+    ok(`Skill: would deploy ${toolName}/SKILL.md to ${ocSkillDir} (dry run)`);
+    return true;
+  }
+
+  try {
+    mkdirSync(ocSkillDir, { recursive: true });
+    cpSync(skillSrc, ocSkillDest);
+    ok(`Skill: deployed to ${ocSkillDir}`);
+    return true;
+  } catch (e) {
+    fail(`Skill: deploy failed. ${e.message}`);
+    return false;
+  }
+}
+
 // ── Single tool install ──
 
 function installSingleTool(toolPath) {
@@ -424,8 +457,7 @@ function installSingleTool(toolPath) {
   }
 
   if (interfaces.skill) {
-    ok(`Skill: SKILL.md available at ${interfaces.skill.path}`);
-    installed++;
+    if (installSkill(toolPath, toolName)) installed++;
   }
 
   if (interfaces.module) {
@@ -468,7 +500,7 @@ async function main() {
     console.log('    Module     ... ESM main/exports -> importable');
     console.log('    MCP Server ... mcp-server.mjs -> claude mcp add --scope user');
     console.log('    OpenClaw   ... openclaw.plugin.json -> ~/.ldm/extensions/ + ~/.openclaw/extensions/');
-    console.log('    Skill      ... SKILL.md -> agent instructions');
+    console.log('    Skill      ... SKILL.md -> ~/.openclaw/skills/<tool>/');
     console.log('    CC Hook    ... guard.mjs or claudeCode.hook -> ~/.claude/settings.json');
     console.log('');
     console.log('  Modes:');

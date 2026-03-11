@@ -1,5 +1,5 @@
 ---
-name: wip-universal-installer
+name: Universal Installer
 version: 2.1.5
 description: The Universal Interface specification for agent-native software. Teaches your AI how to build repos with every interface.
 homepage: https://github.com/wipcomputer/wip-universal-installer

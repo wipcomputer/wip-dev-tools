@@ -1,5 +1,5 @@
 ---
-name: WIP.file-guard
+name: Identity File Protection
 version: 1.0.1
 description: Hook that blocks destructive edits to protected identity files. For Claude Code CLI and OpenClaw.
 homepage: https://github.com/wipcomputer/wip-file-guard

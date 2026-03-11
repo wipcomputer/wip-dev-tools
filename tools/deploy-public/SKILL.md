@@ -1,5 +1,5 @@
 ---
-name: deploy-public
+name: Private-to-Public Sync
 version: 1.3.0
 description: Private-to-public repo sync. Copies everything except ai/ to the public mirror. Creates PR, merges, syncs releases.
 author: Parker Todd Brooks

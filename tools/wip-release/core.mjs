@@ -6,7 +6,7 @@
  */
 
 import { execSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, renameSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
 // ── Version ─────────────────────────────────────────────────────────
@@ -108,6 +108,25 @@ export function updateChangelog(repoPath, newVersion, notes) {
 }
 
 // ── Git ─────────────────────────────────────────────────────────────
+
+/**
+ * Move all RELEASE-NOTES-v*.md files to _trash/.
+ * Returns the number of files moved.
+ */
+function trashReleaseNotes(repoPath) {
+  const files = readdirSync(repoPath).filter(f => /^RELEASE-NOTES-v.*\.md$/i.test(f));
+  if (files.length === 0) return 0;
+
+  const trashDir = join(repoPath, '_trash');
+  if (!existsSync(trashDir)) mkdirSync(trashDir);
+
+  for (const f of files) {
+    renameSync(join(repoPath, f), join(trashDir, f));
+    execFileSync('git', ['add', join('_trash', f)], { cwd: repoPath, stdio: 'pipe' });
+    execFileSync('git', ['rm', '--cached', f], { cwd: repoPath, stdio: 'pipe' });
+  }
+  return files.length;
+}
 
 function gitCommitAndTag(repoPath, newVersion, notes) {
   const msg = `v${newVersion}: ${notes || 'Release'}`;
@@ -471,6 +490,12 @@ export async function release({ repoPath, level, notes, dryRun, noPublish }) {
   // 3. Update CHANGELOG.md
   updateChangelog(repoPath, newVersion, notes);
   console.log(`  ✓ CHANGELOG.md updated`);
+
+  // 3.5. Move RELEASE-NOTES-v*.md to _trash/
+  const trashed = trashReleaseNotes(repoPath);
+  if (trashed > 0) {
+    console.log(`  ✓ Moved ${trashed} RELEASE-NOTES file(s) to _trash/`);
+  }
 
   // 4. Git commit + tag
   gitCommitAndTag(repoPath, newVersion, notes);

@@ -57,6 +57,7 @@ find "$TMPDIR/public" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 # rsync from private, excluding ai/ and .git/
 rsync -a \
   --exclude='ai/' \
+  --exclude='_trash/' \
   --exclude='.git/' \
   --exclude='.DS_Store' \
   --exclude='.wrangler/' \

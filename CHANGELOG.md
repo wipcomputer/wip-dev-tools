@@ -10,6 +10,25 @@
 
 
 
+
+## 1.7.9 (2026-03-11)
+
+Add GitHub Issues convention and filed-by workflow to the Dev Guide.
+
+We've been tracking work in ai/todos/ markdown files. Items get lost. GitHub Issues gives us tracking, cross-referencing, and visibility across all agents. This release documents the full convention.
+
+**Public Dev Guide (DEV-GUIDE-GENERAL-PUBLIC.md):**
+- New "GitHub Issues" section: when to use issues vs ai/todos/, filing convention with attribution lines and filed-by labels, public vs private issue routing workflow
+- Agent ID naming convention: [platform]-[agent]-[machine] format documented with examples
+- Public/private issue bridge: public issues are the front door (users), private issues are the workshop (team), releases connect them
+
+**Private Dev Guide (ai/DEV-GUIDE-FOR-WIP-ONLY-PRIVATE.md):**
+- filed-by label details: cc-mini (blue), oc-lesa-mini (purple), deployed org-wide
+- Commands for adding labels to new agents or repos
+- Incident note: Memory Crystal agent ID drift (4 IDs instead of 2), manual merge of 141K chunks, root cause and fix tracked in memory-crystal-private#33
+
+**Org-wide:** filed-by:cc-mini and filed-by:oc-lesa-mini labels created on all wipcomputer repos.
+
 ## 1.7.8 (2026-03-10)
 
 # Dev Update: Smart Install + Platform Compatibility

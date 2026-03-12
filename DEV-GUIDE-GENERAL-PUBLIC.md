@@ -42,7 +42,7 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 3. Write release notes:    RELEASE-NOTES-v{next-version}.md (see below)
 4. Push branch:            git push -u origin <prefix>/<feature>
 5. Create PR:              gh pr create --title "..." --body "..."
-6. Merge PR:               gh pr merge <number> --merge
+6. Merge PR:               gh pr merge <number> --merge --delete-branch
 7. Rename merged branch:   (see Post-Merge Branch Rename below)
 8. Pull merged main:       git checkout main && git pull origin main
 9. Release:                wip-release patch
@@ -52,7 +52,7 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 
 **Important:**
 - **Every change goes through a PR.** No direct pushes to main. Not even "just a README fix." Branch, PR, merge. Every time.
-- **Never squash merge.** Every commit has co-authors and tells the story of how something was built. Squashing destroys attribution and history. Always use `--merge` or fast-forward. This applies to `gh pr merge`, manual merges, deploy-public.sh, and any other merge path. No exceptions.
+- **Never squash merge.** Every commit has co-authors and tells the story of how something was built. Squashing destroys attribution and history. Always use `--merge` or fast-forward. This applies to `gh pr merge`, manual merges, deploy-public.sh, and any other merge path. No exceptions. Always include `--delete-branch` so the PR branch is cleaned up automatically.
 - **Never delete branches.** Branches are history. They tell the story of what was built and when. After merging, rename them (see below). Never `git branch -D` or `git push --delete` without renaming first.
 - **Never use `--no-publish` before deploying to public.** `deploy-public.sh` pulls release notes from the private repo's GitHub release. If you skip the release with `--no-publish`, the public repo gets empty notes. Run the full pipeline first.
 - After merging, switch back to your dev branch. Don't sit on main.

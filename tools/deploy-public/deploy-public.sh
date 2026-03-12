@@ -99,11 +99,7 @@ PR_URL=$(gh pr create -R "$PUBLIC_REPO" \
 
 echo "Merging PR..."
 PR_NUMBER=$(echo "$PR_URL" | grep -o '[0-9]*$')
-gh pr merge "$PR_NUMBER" -R "$PUBLIC_REPO" --merge
-
-# Delete the deploy branch (merged, no longer needed)
-echo "Cleaning up deploy branch..."
-gh api -X DELETE "repos/$PUBLIC_REPO/git/refs/heads/$BRANCH" 2>/dev/null && echo "  ✓ Deleted branch $BRANCH" || echo "  ! Could not delete branch (non-fatal)"
+gh pr merge "$PR_NUMBER" -R "$PUBLIC_REPO" --merge --delete-branch
 
 # Clean up any other non-main branches on public repo
 echo "Checking for stale branches on public repo..."

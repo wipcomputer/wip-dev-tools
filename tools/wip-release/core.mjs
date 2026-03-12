@@ -57,7 +57,7 @@ export function syncSkillVersion(repoPath, newVersion) {
 
   // Check for staleness: if SKILL.md version is more than a patch behind,
   // warn that content may need updating (not just the version number)
-  const skillVersionMatch = content.match(/^---[\s\S]*?version:\s*(\S+)[\s\S]*?---/);
+  const skillVersionMatch = content.match(/^---[\s\S]*?version:\s*"?(\d+\.\d+\.\d+)"?[\s\S]*?---/);
   if (skillVersionMatch) {
     const skillVersion = skillVersionMatch[1];
     const [sMaj, sMin] = skillVersion.split('.').map(Number);
@@ -68,10 +68,13 @@ export function syncSkillVersion(repoPath, newVersion) {
     }
   }
 
-  // Match version: X.Y.Z or version: "X.Y.Z" in YAML frontmatter (between --- markers)
+  // Match version line in YAML frontmatter (between --- markers).
+  // Uses "[^\n]* for quoted values (including corrupted multi-quote strings
+  // like "1.9.5".9.4".9.3") or \S+ for unquoted values. This replaces the
+  // ENTIRE value on the line, preventing the accumulation bug (#71).
   const updated = content.replace(
-    /^(---[\s\S]*?)(version:\s*)"?\S+?"?([\s\S]*?---)/,
-    `$1$2"${newVersion}"$3`
+    /^(---[\s\S]*?version:\s*)(?:"[^\n]*|\S+)([\s\S]*?---)/,
+    `$1"${newVersion}"$2`
   );
 
   if (updated === content) return false;
@@ -495,12 +498,61 @@ function detectRepoSlug(repoPath) {
   }
 }
 
+// ── Stale Branch Check ──────────────────────────────────────────────
+
+/**
+ * Check for remote branches that are already merged into origin/main.
+ * These should be cleaned up before releasing.
+ *
+ * For patch: WARN (non-blocking, just print stale branches).
+ * For minor/major: BLOCK (return { failed: true }).
+ *
+ * Filters out origin/main, origin/HEAD, and already-renamed --merged- branches.
+ */
+export function checkStaleBranches(repoPath, level) {
+  try {
+    // Fetch latest remote state so --merged check is accurate
+    try {
+      execFileSync('git', ['fetch', '--prune'], { cwd: repoPath, stdio: 'pipe' });
+    } catch {
+      // Non-fatal: proceed with local state if fetch fails
+    }
+
+    const raw = execFileSync('git', ['branch', '-r', '--merged', 'origin/main'], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+
+    if (!raw) return { stale: [], ok: true };
+
+    const stale = raw.split('\n')
+      .map(b => b.trim())
+      .filter(b =>
+        b &&
+        !b.includes('origin/main') &&
+        !b.includes('origin/HEAD') &&
+        !b.includes('--merged-')
+      );
+
+    if (stale.length === 0) return { stale: [], ok: true };
+
+    const isMinorOrMajor = level === 'minor' || level === 'major';
+    return {
+      stale,
+      ok: !isMinorOrMajor,
+      blocked: isMinorOrMajor,
+    };
+  } catch {
+    // Git command failed... skip check gracefully
+    return { stale: [], ok: true, skipped: true };
+  }
+}
+
 // ── Main ────────────────────────────────────────────────────────────
 
 /**
  * Run the full release pipeline.
  */
-export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck }) {
+export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, level);
@@ -593,6 +645,29 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }
   }
 
+  // 0.8. Stale remote branch check
+  if (!skipStaleCheck) {
+    const staleCheck = checkStaleBranches(repoPath, level);
+    if (staleCheck.skipped) {
+      // Silently skip if git command failed
+    } else if (staleCheck.stale.length === 0) {
+      console.log('  ✓ No stale remote branches');
+    } else {
+      const isMinorOrMajor = level === 'minor' || level === 'major';
+      const prefix = isMinorOrMajor ? '✗' : '!';
+      console.log(`  ${prefix} Stale remote branches merged into main:`);
+      for (const b of staleCheck.stale) console.log(`    - ${b}`);
+      if (isMinorOrMajor) {
+        console.log('');
+        console.log('  Clean up stale branches before a minor/major release.');
+        console.log('  Delete them with: git push origin --delete <branch>');
+        console.log('  Use --skip-stale-check to override.');
+        console.log('');
+        return { currentVersion, newVersion, dryRun: false, failed: true };
+      }
+    }
+  }
+
   if (dryRun) {
     // Product docs check (dry-run)
     if (!skipProductCheck) {
@@ -617,6 +692,17 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
         const isMinorOrMajor = level === 'minor' || level === 'major';
         console.log(`  [dry run] ${isMinorOrMajor ? '✗ Would BLOCK' : '! Would WARN'}: release notes need attention`);
         for (const issue of notesCheck.issues) console.log(`    - ${issue}`);
+      }
+    }
+    // Stale branch check (dry-run)
+    if (!skipStaleCheck) {
+      const staleCheck = checkStaleBranches(repoPath, level);
+      if (!staleCheck.skipped && staleCheck.stale.length > 0) {
+        const isMinorOrMajor = level === 'minor' || level === 'major';
+        console.log(`  [dry run] ${isMinorOrMajor ? '✗ Would BLOCK' : '! Would WARN'}: stale remote branches`);
+        for (const b of staleCheck.stale) console.log(`    - ${b}`);
+      } else if (!staleCheck.skipped) {
+        console.log('  [dry run] ✓ No stale remote branches');
       }
     }
     const hasSkill = existsSync(join(repoPath, 'SKILL.md'));

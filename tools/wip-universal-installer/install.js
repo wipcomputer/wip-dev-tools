@@ -87,6 +87,8 @@ function installCLI(repoPath, door) {
       const data = JSON.parse(installed);
       const deps = data.dependencies || {};
       if (deps[pkg.name]?.version === newVersion) {
+        // Still ensure bins are executable (git doesn't preserve +x)
+        ensureBinExecutable(binNames);
         skip(`CLI: ${binNames.join(', ')} already at v${newVersion}`);
         return true;
       }

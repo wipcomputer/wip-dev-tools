@@ -17,6 +17,11 @@
 
 
 
+
+## 1.9.3 (2026-03-12)
+
+Fix: ensure bin executability on installer skip path. Fixes wip-license-guard, wip-license-hook, wip-repo-init, wip-readme-format permission denied after reinstall.
+
 ## 1.9.2 (2026-03-12)
 
 # v1.9.2: Distribution Pipeline Fix

@@ -7,7 +7,7 @@
 // Maintains a registry at ~/.ldm/extensions/registry.json.
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, cpSync, mkdirSync, lstatSync, readlinkSync, unlinkSync, chmodSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, cpSync, mkdirSync, lstatSync, readlinkSync, unlinkSync, chmodSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { detectInterfaces, describeInterfaces, detectInterfacesJSON, detectToolbox } from './detect.mjs';
 
@@ -71,6 +71,137 @@ function updateRegistry(name, info) {
     updatedAt: new Date().toISOString(),
   };
   saveRegistry(registry);
+}
+
+// ── Migration detection ──
+
+/**
+ * Scan existing extension directories for installs that match this tool
+ * but live under a different directory name. Matches on:
+ *   1. Same package name in package.json
+ *   2. Same plugin id in openclaw.plugin.json
+ * Returns array of { dirName, matchType, path } for each match.
+ */
+function findExistingInstalls(toolName, pkg, ocPluginConfig) {
+  const matches = [];
+  const packageName = pkg?.name;
+  const pluginId = ocPluginConfig?.id;
+
+  // Scan both LDM and OC extension dirs
+  for (const extDir of [LDM_EXTENSIONS, OC_EXTENSIONS]) {
+    if (!existsSync(extDir)) continue;
+    let entries;
+    try {
+      entries = readdirSync(extDir, { withFileTypes: true });
+    } catch { continue; }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      const dirName = entry.name;
+      // Skip if it's already the target name
+      if (dirName === toolName) continue;
+      // Skip registry.json
+      if (dirName === 'registry.json') continue;
+
+      const dirPath = join(extDir, dirName);
+
+      // Check package.json name match
+      if (packageName) {
+        const dirPkg = readJSON(join(dirPath, 'package.json'));
+        if (dirPkg?.name === packageName) {
+          if (!matches.some(m => m.dirName === dirName)) {
+            matches.push({ dirName, matchType: 'package', path: dirPath });
+          }
+          continue;
+        }
+      }
+
+      // Check openclaw.plugin.json id match
+      if (pluginId) {
+        const dirPlugin = readJSON(join(dirPath, 'openclaw.plugin.json'));
+        if (dirPlugin?.id === pluginId) {
+          if (!matches.some(m => m.dirName === dirName)) {
+            matches.push({ dirName, matchType: 'plugin-id', path: dirPath });
+          }
+          continue;
+        }
+      }
+    }
+  }
+
+  return matches;
+}
+
+/**
+ * Migrate an existing install from an old directory name to the new one.
+ * Removes old extension dirs (LDM + OC), old MCP registrations, old skills.
+ */
+function migrateExistingInstall(oldName, newName) {
+  // 1. Remove old extension directories (check lstat too for broken symlinks)
+  for (const extDir of [LDM_EXTENSIONS, OC_EXTENSIONS]) {
+    const oldPath = join(extDir, oldName);
+    let pathExists = existsSync(oldPath);
+    if (!pathExists) {
+      try { lstatSync(oldPath); pathExists = true; } catch {}
+    }
+    if (pathExists) {
+      try {
+        execSync(`rm -rf "${oldPath}"`, { stdio: 'pipe' });
+        ok(`Migrated: removed ${oldPath}`);
+      } catch (e) {
+        fail(`Migration: could not remove ${oldPath}. ${e.message}`);
+      }
+    }
+  }
+
+  // 2. Remove old MCP registrations (Claude Code)
+  try {
+    execSync(`claude mcp remove ${oldName} --scope user`, { stdio: 'pipe' });
+    ok(`Migrated: removed MCP registration "${oldName}" from Claude Code`);
+  } catch {}
+
+  // Also clean ~/.claude/.mcp.json fallback
+  const ccMcpPath = join(HOME, '.claude', '.mcp.json');
+  const ccMcp = readJSON(ccMcpPath);
+  if (ccMcp?.mcpServers?.[oldName]) {
+    delete ccMcp.mcpServers[oldName];
+    writeJSON(ccMcpPath, ccMcp);
+  }
+
+  // Also clean ~/.claude.json (user-level MCP)
+  const ccUserPath = join(HOME, '.claude.json');
+  const ccUser = readJSON(ccUserPath);
+  if (ccUser?.mcpServers?.[oldName]) {
+    delete ccUser.mcpServers[oldName];
+    writeJSON(ccUserPath, ccUser);
+    ok(`Migrated: removed MCP registration "${oldName}" from ~/.claude.json`);
+  }
+
+  // 3. Remove old OpenClaw MCP registration
+  if (existsSync(OC_MCP)) {
+    const ocMcp = readJSON(OC_MCP);
+    if (ocMcp?.mcpServers?.[oldName]) {
+      delete ocMcp.mcpServers[oldName];
+      writeJSON(OC_MCP, ocMcp);
+      ok(`Migrated: removed MCP registration "${oldName}" from OpenClaw`);
+    }
+  }
+
+  // 4. Remove old skill directory
+  const oldSkillDir = join(OC_ROOT, 'skills', oldName);
+  if (existsSync(oldSkillDir)) {
+    try {
+      execSync(`rm -rf "${oldSkillDir}"`, { stdio: 'pipe' });
+      ok(`Migrated: removed old skill at ${oldSkillDir}`);
+    } catch {}
+  }
+
+  // 5. Remove old registry entry
+  const registry = loadRegistry();
+  if (registry.extensions[oldName]) {
+    delete registry.extensions[oldName];
+    saveRegistry(registry);
+  }
 }
 
 // ── Install functions ──
@@ -227,19 +358,26 @@ function deployExtension(repoPath, name) {
   }
 }
 
-function installOpenClaw(repoPath, door) {
-  const name = door.config?.name || basename(repoPath);
+function installOpenClaw(repoPath, door, toolName) {
+  // Use toolName (from package.json name, stripped of scope) for the directory.
+  // Never use door.config.name (display name) ... it can have spaces.
+  const name = toolName || door.config?.id || basename(repoPath);
   return deployExtension(repoPath, name);
 }
 
-function registerMCP(repoPath, door) {
-  // Strip npm scope (@org/) from name for claude mcp add compatibility
-  const rawName = door.name || basename(repoPath);
+function registerMCP(repoPath, door, toolName) {
+  // Use toolName for the MCP registration name and LDM path lookup.
+  // Strip npm scope (@org/) from name for claude mcp add compatibility.
+  const rawName = toolName || door.name || basename(repoPath);
   const name = rawName.replace(/^@[\w-]+\//, '');
   const serverPath = join(repoPath, door.file);
-  // Use LDM-deployed path if it exists, otherwise repo path
-  const ldmServerPath = join(LDM_EXTENSIONS, basename(repoPath), door.file);
-  const mcpPath = existsSync(ldmServerPath) ? ldmServerPath : serverPath;
+  // Use LDM-deployed path if it exists, otherwise repo path.
+  // Try toolName first (correct), then basename(repoPath) as fallback.
+  const ldmServerPath = join(LDM_EXTENSIONS, name, door.file);
+  const ldmFallbackPath = join(LDM_EXTENSIONS, basename(repoPath), door.file);
+  const mcpPath = existsSync(ldmServerPath) ? ldmServerPath
+    : existsSync(ldmFallbackPath) ? ldmFallbackPath
+    : serverPath;
 
   // Check if already registered with the same path
   const ccMcpPath = join(HOME, '.claude', '.mcp.json');
@@ -444,7 +582,32 @@ function installSingleTool(toolPath) {
 
   if (DRY_RUN && !JSON_OUTPUT) {
     console.log(describeInterfaces(interfaces));
+
+    // Show migration preview in dry run
+    const existing = findExistingInstalls(toolName, pkg, interfaces.openclaw?.config);
+    if (existing.length > 0) {
+      console.log('');
+      for (const m of existing) {
+        log(`Migration: would rename "${m.dirName}" -> "${toolName}" (matched by ${m.matchType})`);
+      }
+    }
+
     return ifaceNames.length;
+  }
+
+  // Detect and migrate existing installs under different names
+  const existing = findExistingInstalls(toolName, pkg, interfaces.openclaw?.config);
+  if (existing.length > 0) {
+    console.log('');
+    const migrated = new Set();
+    for (const m of existing) {
+      if (!migrated.has(m.dirName)) {
+        log(`Found existing install: "${m.dirName}" (matched by ${m.matchType}). Migrating to "${toolName}"...`);
+        migrateExistingInstall(m.dirName, toolName);
+        migrated.add(m.dirName);
+      }
+    }
+    console.log('');
   }
 
   let installed = 0;
@@ -461,10 +624,10 @@ function installSingleTool(toolPath) {
 
   // Deploy to LDM + OpenClaw (for plugins or any extension with MCP)
   if (interfaces.openclaw) {
-    if (installOpenClaw(toolPath, interfaces.openclaw)) {
+    if (installOpenClaw(toolPath, interfaces.openclaw, toolName)) {
       installed++;
-      registryInfo.ldmPath = join(LDM_EXTENSIONS, interfaces.openclaw.config?.name || basename(toolPath));
-      registryInfo.ocPath = join(OC_EXTENSIONS, interfaces.openclaw.config?.name || basename(toolPath));
+      registryInfo.ldmPath = join(LDM_EXTENSIONS, toolName);
+      registryInfo.ocPath = join(OC_EXTENSIONS, toolName);
     }
   } else if (interfaces.mcp) {
     // Even without openclaw.plugin.json, deploy to LDM for MCP server access
@@ -476,7 +639,7 @@ function installSingleTool(toolPath) {
   }
 
   if (interfaces.mcp) {
-    if (registerMCP(toolPath, interfaces.mcp)) installed++;
+    if (registerMCP(toolPath, interfaces.mcp, toolName)) installed++;
   }
 
   if (interfaces.claudeCodeHook) {

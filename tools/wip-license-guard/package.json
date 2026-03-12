@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-license-guard",
-  "version": "1.9.3",
+  "version": "1.9.5",
   "description": "License compliance for your own repos. Ensures correct copyright, dual-license blocks, and LICENSE files.",
   "type": "module",
   "bin": {

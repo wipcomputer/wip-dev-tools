@@ -640,6 +640,30 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   writePackageVersion(repoPath, newVersion);
   console.log(`  ✓ package.json -> ${newVersion}`);
 
+  // 1.5. Bump sub-tool versions in toolbox repos (tools/*/)
+  const toolsDir = join(repoPath, 'tools');
+  if (existsSync(toolsDir)) {
+    let subBumped = 0;
+    try {
+      const entries = readdirSync(toolsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const subPkgPath = join(toolsDir, entry.name, 'package.json');
+        if (existsSync(subPkgPath)) {
+          try {
+            const subPkg = JSON.parse(readFileSync(subPkgPath, 'utf8'));
+            subPkg.version = newVersion;
+            writeFileSync(subPkgPath, JSON.stringify(subPkg, null, 2) + '\n');
+            subBumped++;
+          } catch {}
+        }
+      }
+    } catch {}
+    if (subBumped > 0) {
+      console.log(`  ✓ ${subBumped} sub-tool(s) -> ${newVersion}`);
+    }
+  }
+
   // 2. Sync SKILL.md
   if (syncSkillVersion(repoPath, newVersion)) {
     console.log(`  ✓ SKILL.md -> ${newVersion}`);

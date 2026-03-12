@@ -19,6 +19,11 @@
 
 
 
+
+## 1.9.5 (2026-03-12)
+
+wip-release: bump sub-tool versions in toolbox repos. Fixes #132.
+
 ## 1.9.4 (2026-03-12)
 
 wip-install: detect and migrate existing installs under different names. Fixes #128.

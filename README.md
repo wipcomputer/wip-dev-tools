@@ -85,6 +85,12 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - *Stable*
 - [Read more about Post-Merge Naming](tools/post-merge-rename/SKILL.md)
 
+**Skill Publish to Website**
+- After every release, your SKILL.md goes live as plain text on your website. No manual copying. No forgetting.
+- Copies SKILL.md to `yoursite.com/install/{name}.txt` and deploys automatically. Any AI can fetch the URL and get clean, parseable instructions. Like `robots.txt` but for agent install prompts.
+- **Interfaces:** Module (built into Release Pipeline)
+- *Stable*
+
 ### License, Compliance, and Protection
 
 **Identity File Protection**
@@ -151,15 +157,16 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 | 4 | Release Pipeline | Y | Y | Y | | Y | |
 | 5 | Private-to-Public Sync | Y | | | | Y | |
 | 6 | Post-Merge Branch Naming | Y | | | | Y | |
+| 7 | Skill Publish to Website | | Y | | | | |
 | | **License, Compliance, and Protection** | | | | | | |
-| 7 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 8 | License Guard | Y | | | | | |
-| 9 | License Rug-Pull Detection | Y | Y | Y | | Y | |
+| 8 | Identity File Protection | Y | Y | | Y | Y | Y |
+| 9 | License Guard | Y | | | | | |
+| 10 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
-| 10 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
-| 11 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
-| 12 | Repo Init | Y | | | | Y | |
-| 13 | README Formatter | Y | | | | Y | |
+| 11 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
+| 12 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 13 | Repo Init | Y | | | | Y | |
+| 14 | README Formatter | Y | | | | Y | |
 
 ## More Info
 

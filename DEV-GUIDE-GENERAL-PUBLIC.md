@@ -168,6 +168,18 @@ The release flow must happen in this exact order:
 
 If you skip step 2 or do it manually (e.g. `git tag` + `git push` without creating a GitHub release), `deploy-public` will create the public release with empty notes. The script pulls notes from the private repo's GitHub release. No release on private = no notes on public.
 
+### Merge, Deploy, Install ... Three Separate Steps
+
+These are three distinct actions. Never combine them.
+
+| Step | What it means | What happens |
+|------|--------------|-------------|
+| **Merge** | Development done | PR merged to private repo's main. Code lands. Nothing else changes. |
+| **Deploy** | Ship to public | `wip-release` + `deploy-public.sh`. Package published. Available to the world. **Not on your machine yet.** |
+| **Install** | Put it on your system | Run the install prompt (`crystal init`, `ldm install`, etc.). Only when the user says "install." |
+
+After Deploy, stop. Do not copy files to extension directories. Do not run `npm install -g`. Do not run `npm link`. The user tests the install flow by running the install prompt. That's how you dogfood.
+
 **If you must release manually** (no root package.json, toolbox repos, etc.):
 1. Update CHANGELOG.md and SKILL.md version
 2. Commit, PR, merge

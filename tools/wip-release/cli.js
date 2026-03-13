@@ -125,6 +125,12 @@ Release notes (highest priority wins, files ALWAYS beat --notes flag):
   4. --notes="text"             Fallback only (use for repos without release notes files)
   Written notes on disk always take priority over a CLI one-liner.
 
+Skill publish to website:
+  Add .publish-skill.json to repo root: { "name": "my-tool" }
+  Set WIP_WEBSITE_REPO env var to your website repo path.
+  After release, SKILL.md is copied to {website}/wip.computer/install/{name}.txt
+  and deploy.sh is run to push to VPS.
+
 Pipeline:
   1. Bump package.json version
   2. Sync SKILL.md version (if exists)
@@ -133,7 +139,8 @@ Pipeline:
   5. Push to remote
   6. npm publish (via 1Password)
   7. GitHub Packages publish
-  8. GitHub release create`);
+  8. GitHub release create
+  9. Publish SKILL.md to website (if configured)`);
   process.exit(level ? 0 : 1);
 }
 

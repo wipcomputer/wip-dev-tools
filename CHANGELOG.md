@@ -25,6 +25,11 @@
 
 
 
+
+## 1.9.11 (2026-03-13)
+
+wip-install bootstraps LDM OS silently when not on PATH
+
 ## 1.9.10 (2026-03-13)
 
 # Release Notes: AI DevOps Toolbox v1.9.10

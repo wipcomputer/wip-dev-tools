@@ -737,6 +737,18 @@ async function main() {
     process.exit(0);
   }
 
+  // ── LDM bootstrap ──
+  // If ldm is not on PATH, try to install it silently before falling back.
+  function bootstrapLdmOs() {
+    try {
+      execSync('npm install -g @wipcomputer/wip-ldm-os', { stdio: 'pipe', timeout: 120000 });
+      execSync('ldm --version', { stdio: 'pipe', timeout: 5000 });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // ── LDM delegation ──
   // If the ldm CLI is on PATH, delegate the entire install to it.
   // ldm install understands all the same interfaces and adds LDM OS orchestration.
@@ -765,14 +777,38 @@ async function main() {
     process.exit(0);
 
   } catch (e) {
-    // ldm not available or failed ... continue with standalone behavior
-    if (ldmAvailable) {
-      // ldm exists but the install command failed
+    if (!ldmAvailable) {
+      // ldm not on PATH, try bootstrap
       if (!JSON_OUTPUT) {
-        console.error('  ldm install failed. Falling back to standalone installer.');
+        console.log('');
+        console.log('  Installing LDM OS infrastructure...');
+        console.log('');
       }
+      if (bootstrapLdmOs()) {
+        ldmAvailable = true;
+        if (!JSON_OUTPUT) {
+          console.log('  LDM OS installed. Delegating to ldm install...');
+          console.log('');
+        }
+        // Now delegate
+        const flags = args.filter(a => a.startsWith('--'));
+        const rawTarget = process.argv[2];
+        try {
+          execSync(`ldm install ${rawTarget} ${flags.join(' ')}`, { stdio: 'inherit' });
+          process.exit(0);
+        } catch (delegateErr) {
+          if (!JSON_OUTPUT) console.error('  ldm install failed. Falling back to standalone installer.');
+        }
+      } else {
+        if (!JSON_OUTPUT) {
+          console.log('  LDM OS install skipped (npm offline or permissions issue). Using standalone.');
+          console.log('');
+        }
+      }
+    } else {
+      // ldm exists but install command failed
+      if (!JSON_OUTPUT) console.error('  ldm install failed. Falling back to standalone installer.');
     }
-    // else: ldm not on PATH, continue with existing code
   }
 
   // Resolve target: GitHub URL, org/repo shorthand, or local path
@@ -882,7 +918,7 @@ async function main() {
     if (ldmAvailable) {
       console.log('  Tip: Run "ldm install" to see more components you can add.');
     } else {
-      console.log('  Tip: Install LDM OS for more components: npm install -g @wipcomputer/wip-ldm-os');
+      console.log('  Tip: LDM OS could not be installed automatically. Try: npm install -g @wipcomputer/wip-ldm-os');
     }
     console.log('');
   }

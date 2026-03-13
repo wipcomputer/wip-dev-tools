@@ -552,7 +552,7 @@ export function checkStaleBranches(repoPath, level) {
 /**
  * Run the full release pipeline.
  */
-export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck }) {
+export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, level);
@@ -561,6 +561,36 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   console.log('');
   console.log(`  ${repoName}: ${currentVersion} -> ${newVersion} (${level})`);
   console.log(`  ${'─'.repeat(40)}`);
+
+  // -1. Worktree guard: block releases from linked worktrees
+  if (!skipWorktreeCheck) {
+    try {
+      const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
+        cwd: repoPath, encoding: 'utf8'
+      }).trim();
+
+      // Linked worktrees have "/worktrees/" in their git-dir path
+      if (gitDir.includes('/worktrees/')) {
+        // Get the main working tree path from `git worktree list`
+        const worktreeList = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+          cwd: repoPath, encoding: 'utf8'
+        });
+        const mainWorktree = worktreeList.split('\n')
+          .find(line => line.startsWith('worktree '));
+        const mainPath = mainWorktree ? mainWorktree.replace('worktree ', '') : '(unknown)';
+
+        console.log(`  \u2717 wip-release must run from the main working tree, not a worktree.`);
+        console.log(`    Current: ${repoPath}`);
+        console.log(`    Main working tree: ${mainPath}`);
+        console.log(`    Switch to the main working tree and run again.`);
+        console.log('');
+        return { currentVersion, newVersion, dryRun: false, failed: true };
+      }
+      console.log('  \u2713 Running from main working tree');
+    } catch {
+      // Git command failed... skip check gracefully
+    }
+  }
 
   // 0. License compliance gate
   const configPath = join(repoPath, '.license-guard.json');

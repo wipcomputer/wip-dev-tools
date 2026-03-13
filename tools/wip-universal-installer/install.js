@@ -562,6 +562,35 @@ function installSkill(repoPath, toolName) {
   }
 }
 
+// ── Worktree gitignore ──
+
+function ensureWorktreeGitignore(repoPath) {
+  // Only for local repos, not /tmp/ clones
+  if (repoPath.startsWith('/tmp/')) return;
+  if (!existsSync(join(repoPath, '.git'))) return;
+
+  const gitignorePath = join(repoPath, '.gitignore');
+  const entry = '.claude/worktrees/';
+
+  if (existsSync(gitignorePath)) {
+    const content = readFileSync(gitignorePath, 'utf8');
+    if (content.includes(entry)) return; // already present
+    if (DRY_RUN) {
+      ok(`Gitignore: would add ${entry} to ${gitignorePath} (dry run)`);
+      return;
+    }
+    const separator = content.endsWith('\n') ? '' : '\n';
+    writeFileSync(gitignorePath, content + separator + entry + '\n');
+  } else {
+    if (DRY_RUN) {
+      ok(`Gitignore: would create ${gitignorePath} with ${entry} (dry run)`);
+      return;
+    }
+    writeFileSync(gitignorePath, entry + '\n');
+  }
+  ok(`Gitignore: added ${entry} to .gitignore`);
+}
+
 // ── Single tool install ──
 
 function installSingleTool(toolPath) {
@@ -665,6 +694,9 @@ function installSingleTool(toolPath) {
       fail(`Registry: update failed. ${e.message}`);
     }
   }
+
+  // Ensure .claude/worktrees/ is in the repo's .gitignore
+  ensureWorktreeGitignore(toolPath);
 
   return installed;
 }

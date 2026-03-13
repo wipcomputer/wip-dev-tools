@@ -506,6 +506,72 @@ gh api "repos/<org>/<repo>/branches/main/protection" -X PUT \
   -F "required_status_checks=null"
 ```
 
+## Worktree Workflow
+
+**Every session starts in a worktree. No one works directly in the main working tree.**
+
+The main working tree stays on `main` and is read-only in practice. All development happens in git worktrees. This keeps the primary clone clean, prevents accidental commits to main, and enables parallel work within a single agent.
+
+### Starting a Worktree
+
+From Claude Code:
+```bash
+claude --worktree <name>
+```
+
+Or mid-session, say "work in a worktree" and the session will move into one.
+
+Worktrees live at `.claude/worktrees/` inside the repo. Each worktree gets its own directory with a full checkout on a separate branch.
+
+### Branch Naming
+
+Worktree branches follow the same prefix convention as regular branches:
+
+```
+<harness>/<feature>
+```
+
+Examples: `cc-mini/fix-search`, `lesa-mini/add-relay`, `cc-air/weekly-tuning`
+
+The worktree name and the branch name don't have to match, but the branch must use your harness prefix.
+
+### Subagents and Parallel Work
+
+Subagents use `isolation: "worktree"` for parallel tasks. Each subagent gets its own worktree, its own branch, and can commit independently without interfering with the parent session or other subagents.
+
+This is the safe way to do parallel work within a single agent. Repos-per-agent solves cross-agent isolation. Worktrees solve within-agent parallelism.
+
+### Commit Before Session Ends
+
+**Always commit and push before a session ends.** Worktree cleanup deletes the entire worktree directory, including any uncommitted work. If it's not committed and pushed, it's gone.
+
+```bash
+git add <files>
+git commit -m "description"
+git push -u origin <prefix>/<feature>
+```
+
+### Release from the Main Working Tree
+
+**`wip-release` must run from the main working tree, not a worktree.** The release pipeline expects to be on `main` in the primary clone. After merging your PR, switch to the main working tree to run the release:
+
+```bash
+cd /path/to/repo          # the main working tree, not .claude/worktrees/...
+git checkout main && git pull
+wip-release patch --notes="description"
+```
+
+### Gitignore
+
+**`.claude/worktrees/` must be in `.gitignore`.** Worktrees are local, ephemeral, and per-machine. They should never be committed.
+
+```
+# .gitignore
+.claude/worktrees/
+```
+
+Add this to every repo that uses worktrees.
+
 ## Review Flow
 
 ```

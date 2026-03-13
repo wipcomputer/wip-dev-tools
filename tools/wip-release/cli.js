@@ -20,6 +20,7 @@ const dryRun = args.includes('--dry-run');
 const noPublish = args.includes('--no-publish');
 const skipProductCheck = args.includes('--skip-product-check');
 const skipStaleCheck = args.includes('--skip-stale-check');
+const skipWorktreeCheck = args.includes('--skip-worktree-check');
 const notesFilePath = flag('notes-file');
 let notes = flag('notes');
 let notesSource = notes ? 'flag' : 'none'; // track where notes came from
@@ -101,6 +102,7 @@ Flags:
   --no-publish             Bump + tag only, skip npm/GitHub
   --skip-product-check     Skip product docs check (dev update, roadmap, readme-first)
   --skip-stale-check       Skip stale remote branch check
+  --skip-worktree-check    Skip worktree guard (allow release from worktree)
 
 Release notes:
   Auto-detects notes from three sources (first match wins):
@@ -130,6 +132,7 @@ release({
   noPublish,
   skipProductCheck,
   skipStaleCheck,
+  skipWorktreeCheck,
 }).catch(err => {
   console.error(`  ✗ ${err.message}`);
   process.exit(1);

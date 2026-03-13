@@ -23,6 +23,11 @@
 
 
 
+
+## 1.9.9 (2026-03-13)
+
+Enforce git worktrees as default workflow. wip-release blocks from worktrees, wip-install auto-adds .claude/worktrees/ to .gitignore, Dev Guide worktree section added.
+
 ## 1.9.8 (2026-03-13)
 
 wip-install delegates to ldm install when available

@@ -458,6 +458,78 @@ export function publishClawHub(repoPath, newVersion, notes) {
   return true;
 }
 
+// ── Skill Publish ────────────────────────────────────────────────────
+
+/**
+ * Publish SKILL.md to website as plain text.
+ *
+ * Reads .publish-skill.json from repo root:
+ *   { "name": "memory-crystal" }
+ *
+ * Uses WIP_WEBSITE_REPO env var for website repo path.
+ * Copies SKILL.md to {website}/wip.computer/install/{name}.txt
+ * Then runs deploy.sh to push to VPS.
+ *
+ * Non-blocking: returns result, never throws.
+ */
+export function publishSkillToWebsite(repoPath) {
+  const configPath = join(repoPath, '.publish-skill.json');
+  if (!existsSync(configPath)) return { skipped: true, reason: 'no .publish-skill.json' };
+
+  const websiteRepo = process.env.WIP_WEBSITE_REPO;
+  if (!websiteRepo) return { skipped: true, reason: 'WIP_WEBSITE_REPO not set' };
+
+  let config;
+  try {
+    config = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch (e) {
+    return { ok: false, error: `bad .publish-skill.json: ${e.message}` };
+  }
+
+  if (!config.name) return { ok: false, error: '.publish-skill.json missing "name"' };
+
+  // Find SKILL.md: check root, then skills/*/SKILL.md
+  let skillFile = join(repoPath, 'SKILL.md');
+  if (!existsSync(skillFile)) {
+    const skillsDir = join(repoPath, 'skills');
+    if (existsSync(skillsDir)) {
+      for (const sub of readdirSync(skillsDir)) {
+        const candidate = join(skillsDir, sub, 'SKILL.md');
+        if (existsSync(candidate)) { skillFile = candidate; break; }
+      }
+    }
+  }
+  if (!existsSync(skillFile)) return { ok: false, error: 'no SKILL.md found' };
+
+  // Copy to website install dir
+  const installDir = join(websiteRepo, 'wip.computer', 'install');
+  if (!existsSync(installDir)) {
+    try { mkdirSync(installDir, { recursive: true }); } catch {}
+  }
+
+  const targetFile = join(installDir, `${config.name}.txt`);
+  try {
+    const content = readFileSync(skillFile, 'utf8');
+    writeFileSync(targetFile, content);
+  } catch (e) {
+    return { ok: false, error: `copy failed: ${e.message}` };
+  }
+
+  // Deploy to VPS (non-blocking ... warn on failure)
+  const deployScript = join(websiteRepo, 'deploy.sh');
+  if (existsSync(deployScript)) {
+    try {
+      execSync(`bash deploy.sh`, { cwd: websiteRepo, stdio: 'pipe', timeout: 30000 });
+    } catch (e) {
+      return { ok: true, deployed: false, target: config.name, error: `deploy failed: ${e.message}` };
+    }
+  } else {
+    return { ok: true, deployed: false, target: config.name, error: 'no deploy.sh found' };
+  }
+
+  return { ok: true, deployed: true, target: config.name };
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function getNpmToken() {
@@ -745,6 +817,19 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       console.log(`  [dry run] Would publish to GitHub Packages`);
       console.log(`  [dry run] Would create GitHub release v${newVersion}`);
       if (hasSkill) console.log(`  [dry run] Would publish to ClawHub`);
+      // Skill-to-website dry run
+      const publishConfig = join(repoPath, '.publish-skill.json');
+      if (existsSync(publishConfig)) {
+        try {
+          const pc = JSON.parse(readFileSync(publishConfig, 'utf8'));
+          const envSet = !!process.env.WIP_WEBSITE_REPO;
+          if (pc.name && envSet) {
+            console.log(`  [dry run] Would publish SKILL.md to website: install/${pc.name}.txt`);
+          } else if (pc.name && !envSet) {
+            console.log(`  [dry run] Would publish to website but WIP_WEBSITE_REPO not set`);
+          }
+        } catch {}
+      }
     }
     console.log('');
     console.log(`  Dry run complete. No changes made.`);
@@ -877,6 +962,22 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
           }
         }
       }
+    }
+
+    // 9.5. Publish SKILL.md to website as plain text
+    const skillWebResult = publishSkillToWebsite(repoPath);
+    if (skillWebResult.skipped) {
+      // Silent skip ... no config or env var
+    } else if (skillWebResult.ok) {
+      const deployNote = skillWebResult.deployed ? '' : ' (copied, deploy skipped)';
+      distResults.push({ target: 'Website', status: 'ok', detail: `install/${skillWebResult.target}.txt${deployNote}` });
+      console.log(`  ✓ Published to website: install/${skillWebResult.target}.txt${deployNote}`);
+      if (!skillWebResult.deployed && skillWebResult.error) {
+        console.log(`    ! ${skillWebResult.error}`);
+      }
+    } else {
+      distResults.push({ target: 'Website', status: 'failed', detail: skillWebResult.error });
+      console.log(`  ✗ Website publish failed: ${skillWebResult.error}`);
     }
   }
 

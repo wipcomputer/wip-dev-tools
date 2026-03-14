@@ -30,6 +30,16 @@
 
 
 
+
+
+## 1.9.17 (2026-03-14)
+
+Add wip-branch-guard: PreToolUse hook that blocks all writes on main branch. Resolves repo from file path so it works from any CWD. Forces agents to branch or worktree before editing.
+
+## 1.9.16 (2026-03-14)
+
+Add wip-branch-guard: PreToolUse hook that blocks all writes on main branch. Resolves repo from file path so it works from any CWD. Forces agents to branch or worktree before editing.
+
 ## 1.9.15 (2026-03-14)
 
 Fix all 5 root causes of truncated release notes (#121). Add --dry-run to readme-license. Update SKILL.md docs for wip-release and wip-license-guard.

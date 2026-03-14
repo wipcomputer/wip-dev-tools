@@ -1,0 +1,11 @@
+{
+  "name": "@wipcomputer/wip-branch-guard",
+  "version": "1.9.17",
+  "description": "PreToolUse hook that blocks all writes on main branch. Forces agents to work on branches or worktrees.",
+  "type": "module",
+  "main": "guard.mjs",
+  "bin": {
+    "wip-branch-guard": "guard.mjs"
+  },
+  "license": "MIT"
+}

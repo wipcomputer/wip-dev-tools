@@ -12,27 +12,31 @@ AI DevOps Toolbox is the complete toolkit. Built by a team of humans and AIs shi
 
 ## Teach your AI to use DevOps Toolbox
 
-Open your AI and say:
+Open your AI and paste this:
 
 ```
-Read the SKILL.md at github.com/wipcomputer/wip-ai-devops-toolbox/blob/main/SKILL.md.
+Read wip.computer/install/ai-devops-toolbox.txt
 
-Then explain to me:
-1. What are these tools?
-2. What do they do?
-3. What would they change about how we work together?
+Then explain:
+1. What is AI DevOps Toolbox?
+2. What does it install on my system?
+3. What changes for us? (this AI)
+4. What changes across all my AIs?
 
-Then ask me:
-- Do you have more questions?
-- Do you want to install them?
+Check if AI DevOps Toolbox is already installed.
+
+If it is, show me what I have and what's new.
+
+Then ask:
+- Do you have questions?
+- Want to see a dry run?
 
 If I say yes, run: wip-install wipcomputer/wip-ai-devops-toolbox --dry-run
 
-Show me exactly what will change on my system. When I'm ready, I'll tell you
-to install for real.
+Show me exactly what will change. Don't install anything until I say "install".
 ```
 
-Your agent will read the repo, explain everything, and do a dry-run install first so you can see exactly what changes before anything is written to your system.
+Your agent will read the spec, explain everything, and do a dry-run install first so you can see exactly what changes before anything is written to your system.
 
 ## AI DevOps Toolbox Features
 
@@ -76,20 +80,26 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - One script syncs your private working repo to a clean public mirror. Excludes internal `ai/` folders automatically. Creates a PR, merges it, cleans up branches
 - **Interfaces:** CLI, Skill
 - *Stable*
-- [Read more about Private-to-Public Sync](tools/deploy-public/SKILL.md)
+- [Read more about Private-to-Public Sync](tools/deploy-public/README.md)
 
 **Post-Merge Branch Naming**
 - Cleans up after itself. Merged branches get renamed with dates automatically.
 - Renames merged branches with `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list
 - **Interfaces:** CLI, Skill
 - *Stable*
-- [Read more about Post-Merge Naming](tools/post-merge-rename/SKILL.md)
+- [Read more about Post-Merge Naming](tools/post-merge-rename/README.md)
 
 **Skill Publish to Website**
 - After every release, your SKILL.md goes live as plain text on your website. No manual copying. No forgetting.
 - Auto-detects any repo with a SKILL.md. Copies it to `yoursite.com/install/{name}.txt` and deploys automatically. No config file needed. Any AI can fetch the URL and get clean, parseable instructions. Like `robots.txt` but for agent install prompts.
 - **Interfaces:** Module (built into Release Pipeline)
 - *Stable*
+
+**Make Discoverable in Claude Code**
+- Turn any repo into a Claude Code plugin. Auto-generates `.claude-plugin/plugin.json` from your existing interfaces.
+- Runs during release. Detects what your repo exposes (skills, hooks, MCP servers, agents) and builds the plugin manifest so it shows up in Claude Code's `/plugin` marketplace. No manual config.
+- **Interfaces:** Module (built into Release Pipeline)
+- *Planned*
 
 ### License, Compliance, and Protection
 
@@ -106,7 +116,7 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - `readme-license` scans all your repos and applies a standard license block to every README in one command. Removes duplicate license sections from sub-tool READMEs
 - **Interfaces:** CLI
 - *Stable*
-- [Read more about License Guard](tools/wip-license-guard/cli.mjs)
+- [Read more about License Guard](tools/wip-license-guard/README.md)
 
 **License Rug-Pull Detection**
 - Catch license changes in dependencies before they ship.
@@ -136,14 +146,14 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - New repo: creates the full structure. Existing repo: moves old `ai/` contents to `ai/_sort/ai_old/` so you can sort at your own pace. Nothing is deleted.
 - **Interfaces:** CLI, Skill
 - *Stable*
-- [Read more about Repo Init](tools/ai-dir-template/SKILL.md)
+- [Read more about Repo Init](tools/wip-repo-init/README.md)
 
 **README Formatter**
 - Generate or validate READMEs that follow the WIP Computer standard. Badges, title, tagline, "Teach Your AI" block, features, interface coverage table, license.
 - Generates separate section files (README-init-badges.md, README-init-features.md, etc.) so you can edit any section independently. Deploy assembles them into the final README. Same pattern as release notes: staging, review, deploy.
 - **Interfaces:** CLI, Skill
 - *Beta*
-- [Read more about README Formatter](tools/wip-readme-format/SKILL.md)
+- [Read more about README Formatter](tools/wip-readme-format/README.md)
 
 ## Interface Coverage
 
@@ -159,20 +169,21 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 | 5 | Private-to-Public Sync | Y | | | | Y | |
 | 6 | Post-Merge Branch Naming | Y | | | | Y | |
 | 7 | Skill Publish to Website | | Y | | | | |
+| 8 | Make Discoverable in CC | | Y | | | | |
 | | **License, Compliance, and Protection** | | | | | | |
-| 8 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 9 | License Guard | Y | | | | | |
-| 10 | License Rug-Pull Detection | Y | Y | Y | | Y | |
+| 9 | Identity File Protection | Y | Y | | Y | Y | Y |
+| 10 | License Guard | Y | | | | | |
+| 11 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
-| 11 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
-| 12 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
-| 13 | Repo Init | Y | | | | Y | |
-| 14 | README Formatter | Y | | | | Y | |
+| 12 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
+| 13 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 14 | Repo Init | Y | | | | Y | |
+| 15 | README Formatter | Y | | | | Y | |
 
 ## More Info
 
-- [Technical Documentation](TECHNICAL.md) ... Source code locations, build steps, development setup, architecture details
-- [Universal Interface Spec](tools/wip-universal-installer/SPEC.md) ... The six interfaces every agent-native tool can ship
+- [Technical Documentation](TECHNICAL.md) ... Source code locations, build steps, development setup, architecture details. See also: [Universal Interface Spec](tools/wip-universal-installer/SPEC.md).
+- [Universal Interface Spec](tools/wip-universal-installer/SPEC.md) ... The seven interfaces every agent-native tool can ship. See also: [Technical Documentation](TECHNICAL.md).
 - [Dev Guide](DEV-GUIDE-GENERAL-PUBLIC.md) ... Best practices for AI-assisted development
 
 ## Part of LDM OS

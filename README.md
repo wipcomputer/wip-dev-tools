@@ -102,7 +102,8 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 
 **License Guard**
 - Enforce licensing on every commit. Copyright, dual-license, CLA. Checked automatically.
-- Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues. `readme-license` scans all your repos and applies a standard license block to every README in one command. Removes duplicate license sections from sub-tool READMEs.
+- Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues
+- `readme-license` scans all your repos and applies a standard license block to every README in one command. Removes duplicate license sections from sub-tool READMEs
 - **Interfaces:** CLI
 - *Stable*
 - [Read more about License Guard](tools/wip-license-guard/cli.mjs)

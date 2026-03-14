@@ -23,7 +23,8 @@ const skipStaleCheck = args.includes('--skip-stale-check');
 const skipWorktreeCheck = args.includes('--skip-worktree-check');
 const notesFilePath = flag('notes-file');
 let notes = flag('notes');
-let notesSource = notes ? 'flag' : 'none'; // track where notes came from
+// Bug fix #121: use strict check, not truthiness. --notes="" is empty, not absent.
+let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'flag' : 'none';
 
 // Release notes priority (highest wins):
 //   1. --notes-file=path          Explicit file path (always wins)

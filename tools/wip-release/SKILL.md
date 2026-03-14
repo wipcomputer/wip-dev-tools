@@ -78,9 +78,27 @@ wip-release checks that product docs (dev update, roadmap, readme-first) were up
 - **--skip-product-check**: bypasses the gate
 
 Checks:
-1. `ai/dev-updates/` has a file from the last 3 days
+1. `ai/dev-updates/` has a file modified since the last release tag
 2. `ai/product/plans-prds/roadmap.md` was modified since last release
 3. `ai/product/readme-first-product.md` was modified since last release
+
+### Skill Publish to Website
+
+After publishing, wip-release auto-copies SKILL.md to your website as plain text. Any AI can fetch the URL and get clean install instructions.
+
+**Setup:** Set the `WIP_WEBSITE_REPO` environment variable to your website repo path. That's it.
+
+**How it works:**
+1. If SKILL.md exists and `WIP_WEBSITE_REPO` is set, copies SKILL.md to `{website}/wip.computer/install/{name}.txt`
+2. Runs `deploy.sh` in the website repo to push live
+3. Non-blocking: if deploy fails, the release still succeeds
+
+**Name resolution (first match wins):**
+1. `.publish-skill.json` in repo root: `{ "name": "my-tool" }`
+2. `package.json` name (with `@scope/` prefix stripped)
+3. Directory name (with `-private` suffix stripped)
+
+No config file needed. Every repo with a SKILL.md auto-publishes on release.
 
 ### Module
 

@@ -29,6 +29,11 @@
 
 
 
+
+## 1.9.15 (2026-03-14)
+
+Fix all 5 root causes of truncated release notes (#121). Add --dry-run to readme-license. Update SKILL.md docs for wip-release and wip-license-guard.
+
 ## 1.9.14 (2026-03-14)
 
 Add readme-license command to wip-license-guard. Scans all repos, applies standard license block, removes from sub-tools. License Guard now Stable.

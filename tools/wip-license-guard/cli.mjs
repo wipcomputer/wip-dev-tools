@@ -13,6 +13,7 @@ const HELP_FLAGS = ['--help', '-h', 'help'];
 const command = HELP_FLAGS.some(f => args.includes(f)) ? 'help' : (args.find(a => !a.startsWith('--')) || 'check');
 const target = args.find((a, i) => i > 0 && !a.startsWith('--')) || '.';
 const FIX = args.includes('--fix');
+const DRY_RUN = args.includes('--dry-run');
 const QUIET = args.includes('--quiet');
 const FROM_STANDARD = args.includes('--from-standard');
 
@@ -321,7 +322,8 @@ async function check(repoPath) {
 }
 
 async function readmeLicense(targetPath) {
-  log(`\n  wip-license-guard readme-license${FIX ? ' --fix' : ''}\n`);
+  const mode = FIX ? '--fix' : DRY_RUN ? '--dry-run' : '';
+  log(`\n  wip-license-guard readme-license${mode ? ' ' + mode : ''}\n`);
 
   // Detect if targetPath is a single repo or a directory of repos
   const repos = [];
@@ -376,6 +378,14 @@ async function readmeLicense(targetPath) {
       } else if (content.includes('## License')) {
         warn(`${repoName}/README.md ... non-standard license section`);
         totalIssues++;
+        if (DRY_RUN) {
+          // Extract current license section for preview
+          const match = content.match(/## License[\s\S]*?(?=\n## [^#]|$)/);
+          if (match) {
+            log(`    current: ${match[0].split('\n').slice(0, 3).join(' | ').substring(0, 80)}...`);
+          }
+          log(`    would replace with: standard dual MIT/AGPLv3 block`);
+        }
         if (FIX) {
           const updated = replaceReadmeLicenseSection(content, config);
           writeFileSync(readmePath, updated);
@@ -385,6 +395,9 @@ async function readmeLicense(targetPath) {
       } else {
         warn(`${repoName}/README.md ... missing ## License`);
         totalIssues++;
+        if (DRY_RUN) {
+          log(`    would add: standard dual MIT/AGPLv3 block at end of README`);
+        }
         if (FIX) {
           const updated = replaceReadmeLicenseSection(content, config);
           writeFileSync(readmePath, updated);
@@ -410,6 +423,9 @@ async function readmeLicense(targetPath) {
           if (subContent.includes('## License')) {
             warn(`${repoName}/tools/${tool.name}/README.md ... has license section (should be removed)`);
             totalIssues++;
+            if (DRY_RUN) {
+              log(`    would remove: ## License section from sub-tool README`);
+            }
             if (FIX) {
               const cleaned = removeReadmeLicenseSection(subContent);
               writeFileSync(subReadme, cleaned);
@@ -425,8 +441,11 @@ async function readmeLicense(targetPath) {
   log('');
   if (totalIssues === 0) {
     log('  All README license sections are correct.\n');
+  } else if (DRY_RUN) {
+    log(`  ${totalIssues} issue(s) found. Dry run complete. No changes made.`);
+    log(`  Run with --fix to apply changes.\n`);
   } else {
-    log(`  ${totalIssues} issue(s) found. Run with --fix to auto-repair.\n`);
+    log(`  ${totalIssues} issue(s) found. Run with --dry-run to preview or --fix to apply.\n`);
   }
 
   return totalIssues;
@@ -453,6 +472,7 @@ if (command === 'init') {
     check [path]               Audit repo against saved config. Exit 1 if issues found.
     check --fix [path]         Auto-fix issues (update LICENSE files, wrong copyright).
     readme-license [path]      Scan README license sections. Works on one repo or a directory of repos.
+    readme-license --dry-run   Preview what would change. Shows current vs standard for each README.
     readme-license --fix       Apply standard license block to all READMEs. Remove from sub-tools.
     help                       Show this help.
 

@@ -90,19 +90,27 @@ export function syncSkillVersion(repoPath, newVersion) {
 export function updateChangelog(repoPath, newVersion, notes) {
   const changelogPath = join(repoPath, 'CHANGELOG.md');
   const date = new Date().toISOString().split('T')[0];
-  const entry = `## ${newVersion} (${date})\n\n${notes || 'Release.'}\n`;
+
+  // Bug fix #121: never silently default to "Release." when notes are empty.
+  // If notes are empty at this point, warn loudly.
+  if (!notes || !notes.trim()) {
+    console.warn(`  ! WARNING: No release notes provided for v${newVersion}. CHANGELOG entry will be minimal.`);
+    notes = 'No release notes provided.';
+  }
+
+  const entry = `## ${newVersion} (${date})\n\n${notes}\n`;
 
   if (!existsSync(changelogPath)) {
-    writeFileSync(changelogPath, `# Changelog\n\n${entry}\n`);
+    writeFileSync(changelogPath, `# Changelog\n\n${entry}`);
     return;
   }
 
   let content = readFileSync(changelogPath, 'utf8');
-  // Insert after the # Changelog header
-  const headerMatch = content.match(/^# Changelog\s*\n/);
+  // Insert after the # Changelog header (single newline, no accumulation)
+  const headerMatch = content.match(/^# Changelog\s*\n+/);
   if (headerMatch) {
     const insertPoint = headerMatch[0].length;
-    content = content.slice(0, insertPoint) + '\n' + entry + '\n' + content.slice(insertPoint);
+    content = content.slice(0, insertPoint) + entry + '\n' + content.slice(insertPoint);
   } else {
     content = `# Changelog\n\n${entry}\n${content}`;
   }
@@ -395,7 +403,7 @@ export function buildReleaseNotes(repoPath, currentVersion, newVersion, notes) {
   }
 
   // Install section
-  lines.push('### Install\n');
+  lines.push('### Install');
   lines.push('```bash');
   lines.push(`npm install -g ${pkg.name}@${newVersion}`);
   lines.push('```');
@@ -438,6 +446,18 @@ export function createGitHubRelease(repoPath, newVersion, notes, currentVersion)
       '--notes-file', '.release-notes-tmp.md',
       '--repo', repoSlug
     ], { cwd: repoPath, stdio: 'inherit' });
+
+    // Bug fix #121: verify the release was actually created
+    try {
+      const verify = execFileSync('gh', [
+        'release', 'view', `v${newVersion}`,
+        '--repo', repoSlug, '--json', 'body', '--jq', '.body | length'
+      ], { cwd: repoPath, encoding: 'utf8' }).trim();
+      const bodyLen = parseInt(verify, 10);
+      if (bodyLen < 50) {
+        console.warn(`  ! GitHub release body is only ${bodyLen} chars. Notes may be truncated.`);
+      }
+    } catch {}
   } finally {
     try { execFileSync('rm', ['-f', tmpFile]); } catch {}
   }

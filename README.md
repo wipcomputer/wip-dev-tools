@@ -101,15 +101,6 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - **Interfaces:** Module (built into Release Pipeline)
 - *Planned*
 
-### Branch Protection and Safety
-
-**Branch Guard**
-- Blocks all writes on main. Agents must branch or worktree before editing anything.
-- PreToolUse hook that catches Write, Edit, and destructive Bash commands. Resolves the repo from the file path, not the CWD, so it works when Claude Code opens in a different directory. Read-only operations and merge/pull are still allowed on main.
-- **Interfaces:** CC Hook
-- *Stable*
-- [Read more about Branch Guard](tools/wip-branch-guard/INSTALL.md)
-
 ### License, Compliance, and Protection
 
 **Identity File Protection**
@@ -164,6 +155,19 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - *Stable*
 - [Read more about README Formatter](tools/wip-readme-format/README.md)
 
+**Forced Git Worktrees**
+- Every repo uses git worktrees. Agents never edit on main. Period.
+- When an agent needs to make changes, it creates a worktree (isolated copy of the repo on its own branch). All edits happen there. Main stays clean. Multiple agents can work on the same repo simultaneously without collisions. When the work is done, it goes through a PR to merge back.
+- **Interfaces:** CLI, CC Hook
+- *Stable*
+
+**Branch Guard**
+- Blocks all writes on main. The enforcement layer for forced worktrees.
+- PreToolUse hook that catches Write, Edit, and destructive Bash commands. Resolves the repo from the file path, not the CWD, so it works when Claude Code opens in a different directory. Read-only operations and merge/pull are still allowed on main.
+- **Interfaces:** CC Hook
+- *Stable*
+- [Read more about Branch Guard](tools/wip-branch-guard/INSTALL.md)
+
 ## Interface Coverage
 
 | # | Tool | CLI | Module | MCP | OC Plugin | Skill | CC Hook |
@@ -179,17 +183,17 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 | 6 | Post-Merge Branch Naming | Y | | | | Y | |
 | 7 | Skill Publish to Website | | Y | | | | |
 | 8 | Make Discoverable in CC | | Y | | | | |
-| | **Branch Protection and Safety** | | | | | | |
-| 9 | Branch Guard | | | | | | Y |
 | | **License, Compliance, and Protection** | | | | | | |
-| 10 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 11 | License Guard | Y | | | | | |
-| 12 | License Rug-Pull Detection | Y | Y | Y | | Y | |
+| 9 | Identity File Protection | Y | Y | | Y | Y | Y |
+| 10 | License Guard | Y | | | | | |
+| 11 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
-| 13 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
-| 14 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
-| 15 | Repo Init | Y | | | | Y | |
-| 16 | README Formatter | Y | | | | Y | |
+| 12 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
+| 13 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 14 | Repo Init | Y | | | | Y | |
+| 15 | README Formatter | Y | | | | Y | |
+| 16 | Forced Git Worktrees | Y | | | | | Y |
+| 17 | Branch Guard | | | | | | Y |
 
 ## More Info
 

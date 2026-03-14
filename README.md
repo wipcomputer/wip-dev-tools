@@ -101,6 +101,15 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - **Interfaces:** Module (built into Release Pipeline)
 - *Planned*
 
+### Branch Protection and Safety
+
+**Branch Guard**
+- Blocks all writes on main. Agents must branch or worktree before editing anything.
+- PreToolUse hook that catches Write, Edit, and destructive Bash commands. Resolves the repo from the file path, not the CWD, so it works when Claude Code opens in a different directory. Read-only operations and merge/pull are still allowed on main.
+- **Interfaces:** CC Hook
+- *Stable*
+- [Read more about Branch Guard](tools/wip-branch-guard/INSTALL.md)
+
 ### License, Compliance, and Protection
 
 **Identity File Protection**
@@ -152,7 +161,7 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - Generate or validate READMEs that follow the WIP Computer standard. Badges, title, tagline, "Teach Your AI" block, features, interface coverage table, license.
 - Generates separate section files (README-init-badges.md, README-init-features.md, etc.) so you can edit any section independently. Deploy assembles them into the final README. Same pattern as release notes: staging, review, deploy.
 - **Interfaces:** CLI, Skill
-- *Beta*
+- *Stable*
 - [Read more about README Formatter](tools/wip-readme-format/README.md)
 
 ## Interface Coverage
@@ -170,21 +179,23 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 | 6 | Post-Merge Branch Naming | Y | | | | Y | |
 | 7 | Skill Publish to Website | | Y | | | | |
 | 8 | Make Discoverable in CC | | Y | | | | |
+| | **Branch Protection and Safety** | | | | | | |
+| 9 | Branch Guard | | | | | | Y |
 | | **License, Compliance, and Protection** | | | | | | |
-| 9 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 10 | License Guard | Y | | | | | |
-| 11 | License Rug-Pull Detection | Y | Y | Y | | Y | |
+| 10 | Identity File Protection | Y | Y | | Y | Y | Y |
+| 11 | License Guard | Y | | | | | |
+| 12 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
-| 12 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
-| 13 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
-| 14 | Repo Init | Y | | | | Y | |
-| 15 | README Formatter | Y | | | | Y | |
+| 13 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
+| 14 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 15 | Repo Init | Y | | | | Y | |
+| 16 | README Formatter | Y | | | | Y | |
 
 ## More Info
 
-- [Technical Documentation](TECHNICAL.md) ... Source code locations, build steps, development setup, architecture details. See also: [Universal Interface Spec](tools/wip-universal-installer/SPEC.md).
-- [Universal Interface Spec](tools/wip-universal-installer/SPEC.md) ... The seven interfaces every agent-native tool can ship. See also: [Technical Documentation](TECHNICAL.md).
-- [Dev Guide](DEV-GUIDE-GENERAL-PUBLIC.md) ... Best practices for AI-assisted development
+- [Technical Documentation](TECHNICAL.md) ... source code, build steps, architecture
+- [Universal Interface Spec](tools/wip-universal-installer/SPEC.md) ... the seven interfaces every agent-native tool can ship
+- [Dev Guide](DEV-GUIDE-GENERAL-PUBLIC.md) ... best practices for AI-assisted development
 
 ## Part of LDM OS
 

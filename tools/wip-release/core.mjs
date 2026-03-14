@@ -273,19 +273,23 @@ function checkProductDocs(repoPath) {
   const aiDir = join(repoPath, 'ai');
   if (!existsSync(aiDir)) return { missing: [], ok: true, skipped: true };
 
-  // 1. Dev update: file from today (or last 3 days)
+  // 1. Dev update: must have a file modified since last release tag.
+  // Old check ("any file from last 3 days") let the same stale file pass
+  // across 11 releases in one session. Now uses the same git-based check
+  // as roadmap and readme-first: was the file actually changed since the tag?
   const devUpdatesDir = join(aiDir, 'dev-updates');
   if (existsSync(devUpdatesDir)) {
-    const now = new Date();
-    const recentDates = [];
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      recentDates.push(d.toISOString().split('T')[0]);
-    }
     const files = readdirSync(devUpdatesDir).filter(f => f.endsWith('.md'));
-    const hasRecent = files.some(f => recentDates.some(d => f.startsWith(d)));
-    if (!hasRecent) missing.push('ai/dev-updates/ (no dev update from last 3 days)');
+    if (files.length === 0) {
+      missing.push('ai/dev-updates/ (no dev update files)');
+    } else {
+      const anyModified = files.some(f =>
+        fileModifiedSinceLastTag(repoPath, `ai/dev-updates/${f}`)
+      );
+      if (!anyModified) {
+        missing.push('ai/dev-updates/ (no dev update modified since last release)');
+      }
+    }
   }
 
   // 2. Roadmap: modified since last tag
@@ -463,30 +467,22 @@ export function publishClawHub(repoPath, newVersion, notes) {
 /**
  * Publish SKILL.md to website as plain text.
  *
- * Reads .publish-skill.json from repo root:
- *   { "name": "memory-crystal" }
+ * Auto-detects: if SKILL.md exists and WIP_WEBSITE_REPO is set,
+ * publishes automatically. No config file needed.
  *
- * Uses WIP_WEBSITE_REPO env var for website repo path.
+ * Name resolution (first match wins):
+ *   1. .publish-skill.json { "name": "memory-crystal" }
+ *   2. SKILL.md frontmatter name: field
+ *   3. Directory name (basename of repoPath)
+ *
  * Copies SKILL.md to {website}/wip.computer/install/{name}.txt
  * Then runs deploy.sh to push to VPS.
  *
  * Non-blocking: returns result, never throws.
  */
 export function publishSkillToWebsite(repoPath) {
-  const configPath = join(repoPath, '.publish-skill.json');
-  if (!existsSync(configPath)) return { skipped: true, reason: 'no .publish-skill.json' };
-
   const websiteRepo = process.env.WIP_WEBSITE_REPO;
   if (!websiteRepo) return { skipped: true, reason: 'WIP_WEBSITE_REPO not set' };
-
-  let config;
-  try {
-    config = JSON.parse(readFileSync(configPath, 'utf8'));
-  } catch (e) {
-    return { ok: false, error: `bad .publish-skill.json: ${e.message}` };
-  }
-
-  if (!config.name) return { ok: false, error: '.publish-skill.json missing "name"' };
 
   // Find SKILL.md: check root, then skills/*/SKILL.md
   let skillFile = join(repoPath, 'SKILL.md');
@@ -499,7 +495,37 @@ export function publishSkillToWebsite(repoPath) {
       }
     }
   }
-  if (!existsSync(skillFile)) return { ok: false, error: 'no SKILL.md found' };
+  if (!existsSync(skillFile)) return { skipped: true, reason: 'no SKILL.md found' };
+
+  // Resolve target name: config > package.json > directory name
+  // SKILL.md frontmatter name is skipped because it's a short slug
+  // (e.g., "memory") not the full install name (e.g., "memory-crystal").
+  let targetName;
+
+  // 1. Explicit config (optional, overrides auto-detect)
+  const configPath = join(repoPath, '.publish-skill.json');
+  if (existsSync(configPath)) {
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf8'));
+      if (config.name) targetName = config.name;
+    } catch {}
+  }
+
+  // 2. package.json name (strip @scope/ prefix, most reliable)
+  if (!targetName) {
+    const pkgPath = join(repoPath, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+        if (pkg.name) targetName = pkg.name.replace(/^@[^/]+\//, '');
+      } catch {}
+    }
+  }
+
+  // 3. Directory name fallback (strip -private suffix)
+  if (!targetName) {
+    targetName = basename(repoPath).replace(/-private$/, '').toLowerCase();
+  }
 
   // Copy to website install dir
   const installDir = join(websiteRepo, 'wip.computer', 'install');
@@ -507,7 +533,7 @@ export function publishSkillToWebsite(repoPath) {
     try { mkdirSync(installDir, { recursive: true }); } catch {}
   }
 
-  const targetFile = join(installDir, `${config.name}.txt`);
+  const targetFile = join(installDir, `${targetName}.txt`);
   try {
     const content = readFileSync(skillFile, 'utf8');
     writeFileSync(targetFile, content);
@@ -521,13 +547,13 @@ export function publishSkillToWebsite(repoPath) {
     try {
       execSync(`bash deploy.sh`, { cwd: websiteRepo, stdio: 'pipe', timeout: 30000 });
     } catch (e) {
-      return { ok: true, deployed: false, target: config.name, error: `deploy failed: ${e.message}` };
+      return { ok: true, deployed: false, target: targetName, error: `deploy failed: ${e.message}` };
     }
   } else {
-    return { ok: true, deployed: false, target: config.name, error: 'no deploy.sh found' };
+    return { ok: true, deployed: false, target: targetName, error: 'no deploy.sh found' };
   }
 
-  return { ok: true, deployed: true, target: config.name };
+  return { ok: true, deployed: true, target: targetName };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -817,18 +843,27 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       console.log(`  [dry run] Would publish to GitHub Packages`);
       console.log(`  [dry run] Would create GitHub release v${newVersion}`);
       if (hasSkill) console.log(`  [dry run] Would publish to ClawHub`);
-      // Skill-to-website dry run
-      const publishConfig = join(repoPath, '.publish-skill.json');
-      if (existsSync(publishConfig)) {
-        try {
-          const pc = JSON.parse(readFileSync(publishConfig, 'utf8'));
-          const envSet = !!process.env.WIP_WEBSITE_REPO;
-          if (pc.name && envSet) {
-            console.log(`  [dry run] Would publish SKILL.md to website: install/${pc.name}.txt`);
-          } else if (pc.name && !envSet) {
-            console.log(`  [dry run] Would publish to website but WIP_WEBSITE_REPO not set`);
+      // Skill-to-website dry run (auto-detects SKILL.md, no config needed)
+      if (hasSkill) {
+        const envSet = !!process.env.WIP_WEBSITE_REPO;
+        if (envSet) {
+          // Resolve name same way as publishSkillToWebsite
+          let dryName;
+          const publishConfig = join(repoPath, '.publish-skill.json');
+          if (existsSync(publishConfig)) {
+            try { dryName = JSON.parse(readFileSync(publishConfig, 'utf8')).name; } catch {}
           }
-        } catch {}
+          if (!dryName) {
+            const pkgPath = join(repoPath, 'package.json');
+            if (existsSync(pkgPath)) {
+              try { dryName = JSON.parse(readFileSync(pkgPath, 'utf8')).name?.replace(/^@[^/]+\//, ''); } catch {}
+            }
+          }
+          if (!dryName) dryName = basename(repoPath).replace(/-private$/, '').toLowerCase();
+          console.log(`  [dry run] Would publish SKILL.md to website: install/${dryName}.txt`);
+        } else {
+          console.log(`  [dry run] Would publish SKILL.md to website but WIP_WEBSITE_REPO not set`);
+        }
       }
     }
     console.log('');

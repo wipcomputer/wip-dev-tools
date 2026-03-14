@@ -5,7 +5,7 @@ license: MIT
 interface: [cli, module, mcp, skill, hook, plugin]
 metadata:
   display-name: "WIP AI DevOps Toolbox"
-  version: "1.9.12"
+  version: "1.9.13"
   homepage: "https://github.com/wipcomputer/wip-ai-devops-toolbox"
   author: "Parker Todd Brooks"
   category: dev-tools
@@ -219,8 +219,9 @@ Write dev updates as you work. wip-release picks them up automatically. No more 
 9. **Step 8:** Publishes to npm (if not `private: true`)
 10. **Step 9:** Publishes to GitHub Packages
 11. **Step 10:** Creates GitHub release with release notes (full narrative, not one-liners)
-12. **Step 11:** Renames merged branches with `--merged-YYYY-MM-DD`
-13. **Step 12:** Prunes old merged branches (keeps last 3 per developer prefix)
+12. **Step 11:** Publishes SKILL.md to website as plain text (if SKILL.md exists and `WIP_WEBSITE_REPO` is set)
+13. **Step 12:** Renames merged branches with `--merged-YYYY-MM-DD`
+14. **Step 13:** Prunes old merged branches (keeps last 3 per developer prefix)
 
 **Where it writes:** `package.json`, `SKILL.md`, `CHANGELOG.md`, git tags, npm registry, GitHub Releases
 
@@ -292,6 +293,33 @@ bash scripts/post-merge-rename.sh --dry-run    # preview without changes
 **Where it writes:** Remote branch names on GitHub (renames and deletes)
 
 **Interfaces:** CLI, Skill
+
+### Skill Publish to Website
+
+After every release, your SKILL.md goes live as plain text on your website. No manual copying. No config file needed.
+
+**How it works:** Built into `wip-release`. If SKILL.md exists and `WIP_WEBSITE_REPO` env var is set, the release pipeline automatically copies SKILL.md to `{website}/wip.computer/install/{name}.txt` and runs `deploy.sh` to push it live.
+
+**Name resolution (first match wins):**
+1. `.publish-skill.json` in repo root: `{ "name": "my-tool" }`
+2. `package.json` name (with `@scope/` prefix stripped)
+3. Directory name (with `-private` suffix stripped)
+
+**Setup:**
+```bash
+export WIP_WEBSITE_REPO="/path/to/your-website-repo"
+```
+
+That's it. Every repo with a SKILL.md auto-publishes on release. The convention is `yoursite.com/install/{name}.txt`. Plain text, no HTML. Any AI can `fetch()` the URL and get clean, parseable install instructions.
+
+**Override the name (optional):** Add `.publish-skill.json` to repo root:
+```json
+{ "name": "memory-crystal" }
+```
+
+**Non-blocking:** If the website repo is missing, deploy fails, or the env var isn't set, the release still succeeds. You'll see a warning in the output.
+
+**Interface:** Module (built into Release Pipeline)
 
 ---
 

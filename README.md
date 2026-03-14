@@ -87,7 +87,7 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 
 **Skill Publish to Website**
 - After every release, your SKILL.md goes live as plain text on your website. No manual copying. No forgetting.
-- Copies SKILL.md to `yoursite.com/install/{name}.txt` and deploys automatically. Any AI can fetch the URL and get clean, parseable instructions. Like `robots.txt` but for agent install prompts.
+- Auto-detects any repo with a SKILL.md. Copies it to `yoursite.com/install/{name}.txt` and deploys automatically. No config file needed. Any AI can fetch the URL and get clean, parseable instructions. Like `robots.txt` but for agent install prompts.
 - **Interfaces:** Module (built into Release Pipeline)
 - *Stable*
 

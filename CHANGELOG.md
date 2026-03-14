@@ -32,6 +32,10 @@
 
 
 
+## 1.9.22 (2026-03-14)
+
+All 17 tools listed with descriptions. New section order: Setup, Infrastructure, Repo Management, License, Release. Conversational prompt.
+
 ## 1.9.21 (2026-03-14)
 
 Add Already Installed section with tool descriptions. Dogfood fix.

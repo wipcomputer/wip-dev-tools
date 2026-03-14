@@ -5,7 +5,7 @@ license: MIT
 interface: [cli, module, mcp, skill, hook, plugin]
 metadata:
   display-name: "WIP AI DevOps Toolbox"
-  version: "1.9.21"
+  version: "1.9.22"
   homepage: "https://github.com/wipcomputer/wip-ai-devops-toolbox"
   author: "Parker Todd Brooks"
   category: dev-tools
@@ -76,22 +76,36 @@ The tools in this toolbox use different capabilities. Check what you have and te
 
 ### Already installed? Show what they have.
 
-If the user already has the toolbox installed (check `ldm status` or look for `wip-release` on PATH), show them what they have with descriptions. Don't just list versions. Explain what each tool does:
+If the user already has the toolbox installed (check `ldm status` or look for `wip-release` on PATH), show them what they have. List every tool with its description and version. Use the categories below. If an update is available, tell the user and offer to update via `ldm install wipcomputer/wip-ai-devops-toolbox`.
 
-- **wip-release** ... one-command releases (version bump, changelog, npm publish, GitHub release)
-- **wip-license-hook** ... catches license changes in dependencies before they ship
-- **wip-license-guard** ... enforces your own repo's copyright, LICENSE file, CLA
-- **wip-file-guard** ... blocks destructive edits to identity files (CLAUDE.md, SOUL.md, MEMORY.md)
-- **wip-repo-permissions-hook** ... blocks repos from going public without a -private counterpart
-- **wip-repos** ... one source of truth for repo folder structure
-- **wip-repo-init** ... scaffolds the standard ai/ directory in any repo
-- **wip-readme-format** ... generates READMEs following a standard format
-- **wip-branch-guard** ... blocks all writes on main branch (forces worktrees/branches)
-- **deploy-public** ... syncs private repos to public mirrors
-- **post-merge-rename** ... renames merged branches with dates for cleanup
-- **universal-installer** ... detects and deploys tool interfaces
+**Setup & Onboarding**
+1. **Universal Installer** ... one command detects and deploys all interfaces (CLI, MCP, Plugin, Skill, Hook). Powers `ldm install`.
+2. **Dev Guide** ... team conventions: release process, repo structure, branch protection, ai/ folder standard.
 
-Show the version next to each. If an update is available, tell the user and offer to update via `ldm install wipcomputer/wip-ai-devops-toolbox`.
+**Infrastructure**
+3. **LDM Dev Tools.app** ... scheduled automation: backup, branch protection audit, visibility audit. Runs unattended.
+
+**Repo Management**
+4. **Repo Visibility Guard** ... blocks repos from going public without a -private counterpart. Prevents accidental exposure.
+5. **Repo Manifest Reconciler** ... one source of truth for folder structure. Drift detection and auto-sync.
+6. **Repo Init** ... scaffolds the standard ai/ directory. Plans, notes, dev updates, todos. One command.
+7. **README Formatter** ... generates READMEs following the standard format. Staging, review, deploy.
+8. **Forced Git Worktrees** ... agents never edit on main. Isolated copies, PRs to merge back.
+9. **Branch Guard** ... blocks all writes on main. The enforcement layer for forced worktrees.
+
+**License, Compliance, and Protection**
+10. **Identity File Protection** ... blocks overwrites of CLAUDE.md, SOUL.md, MEMORY.md, SHARED-CONTEXT.md.
+11. **License Guard** ... enforces copyright, dual-license, CLA on your own repos. Auto-fix mode.
+12. **License Rug-Pull Detection** ... catches license changes in dependencies before they ship.
+
+**Release & Deploy**
+13. **Release Pipeline** ... version bump, changelog, npm publish, GitHub release. One command.
+14. **Private-to-Public Sync** ... syncs private repo to public mirror. Excludes ai/ automatically.
+15. **Post-Merge Branch Naming** ... renames merged branches with dates. Keeps history clean.
+16. **Skill Publish to Website** ... auto-publishes SKILL.md as plain text on release. Like robots.txt for agents.
+17. **Make Discoverable in Claude Code** ... auto-generates plugin manifest for Claude Code marketplace. (Planned)
+
+After listing, say: "You can ask me about any of these tools and I'll explain more about what it does and how to use it."
 
 ### Step 0: Check for LDM OS
 
@@ -140,22 +154,27 @@ Always dry-run first:
 ldm install wipcomputer/wip-ai-devops-toolbox --dry-run
 ```
 
-Show the user the output. It lists every sub-tool and every interface that will be deployed. Walk through what each tool does:
+Show the user the output. It lists every sub-tool and every interface that will be deployed. Walk through what each tool does, grouped by category:
 
-- **wip-release** ... one-command releases (version bump, changelog, npm publish, GitHub release)
-- **wip-license-hook** ... catches license changes in dependencies before they ship
-- **wip-license-guard** ... enforces your own repo's copyright, LICENSE file, CLA
-- **wip-file-guard** ... blocks destructive edits to identity files (CLAUDE.md, SOUL.md, MEMORY.md)
-- **wip-repo-permissions-hook** ... blocks repos from going public without a -private counterpart
-- **wip-repos** ... one source of truth for repo folder structure
-- **wip-repo-init** ... scaffolds the standard ai/ directory in any repo
-- **wip-readme-format** ... generates READMEs following a standard format
-- **wip-branch-guard** ... blocks all writes on main branch (forces worktrees/branches)
-- **deploy-public** ... syncs private repos to public mirrors
-- **post-merge-rename** ... renames merged branches with dates for cleanup
-- **universal-installer** ... detects and deploys tool interfaces
+**Repo Management**
+- **Repo Visibility Guard** ... blocks repos from going public without a -private counterpart
+- **Repo Manifest Reconciler** ... one source of truth for folder structure
+- **Repo Init** ... scaffolds the standard ai/ directory in any repo
+- **README Formatter** ... generates READMEs following the standard format
+- **Branch Guard** ... blocks all writes on main (forces worktrees)
 
-Ask: "Do you have questions about any of these? Want to proceed with the install?"
+**License, Compliance, and Protection**
+- **Identity File Protection** ... blocks overwrites of CLAUDE.md, SOUL.md, MEMORY.md
+- **License Guard** ... enforces copyright, dual-license, CLA on your repos
+- **License Rug-Pull Detection** ... catches license changes in dependencies
+
+**Release & Deploy**
+- **Release Pipeline** ... version bump, changelog, npm publish, GitHub release
+- **Private-to-Public Sync** ... syncs private to public, excludes ai/ automatically
+- **Post-Merge Branch Naming** ... renames merged branches with dates
+- **Universal Installer** ... detects and deploys tool interfaces
+
+Ask: "You can ask me about any of these tools and I'll explain more. Want to proceed with the install?"
 
 ### Step 2: Install
 

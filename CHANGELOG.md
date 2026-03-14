@@ -32,6 +32,10 @@
 
 
 
+## 1.9.21 (2026-03-14)
+
+Add Already Installed section with tool descriptions. Dogfood fix.
+
 ## 1.9.20 (2026-03-14)
 
 Make root package publishable. npm install -g @wipcomputer/wip-ai-devops-toolbox now installs all 12 CLI tools.

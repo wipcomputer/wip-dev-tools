@@ -5,7 +5,7 @@ license: MIT
 interface: [cli, module, mcp, skill, hook, plugin]
 metadata:
   display-name: "WIP AI DevOps Toolbox"
-  version: "1.9.20"
+  version: "1.9.21"
   homepage: "https://github.com/wipcomputer/wip-ai-devops-toolbox"
   author: "Parker Todd Brooks"
   category: dev-tools
@@ -73,6 +73,25 @@ The tools in this toolbox use different capabilities. Check what you have and te
 ## Install
 
 **You are an AI agent helping a user install AI DevOps Toolbox. Walk them through the process step by step. Ask questions, explain what you're doing, and let them make choices.**
+
+### Already installed? Show what they have.
+
+If the user already has the toolbox installed (check `ldm status` or look for `wip-release` on PATH), show them what they have with descriptions. Don't just list versions. Explain what each tool does:
+
+- **wip-release** ... one-command releases (version bump, changelog, npm publish, GitHub release)
+- **wip-license-hook** ... catches license changes in dependencies before they ship
+- **wip-license-guard** ... enforces your own repo's copyright, LICENSE file, CLA
+- **wip-file-guard** ... blocks destructive edits to identity files (CLAUDE.md, SOUL.md, MEMORY.md)
+- **wip-repo-permissions-hook** ... blocks repos from going public without a -private counterpart
+- **wip-repos** ... one source of truth for repo folder structure
+- **wip-repo-init** ... scaffolds the standard ai/ directory in any repo
+- **wip-readme-format** ... generates READMEs following a standard format
+- **wip-branch-guard** ... blocks all writes on main branch (forces worktrees/branches)
+- **deploy-public** ... syncs private repos to public mirrors
+- **post-merge-rename** ... renames merged branches with dates for cleanup
+- **universal-installer** ... detects and deploys tool interfaces
+
+Show the version next to each. If an update is available, tell the user and offer to update via `ldm install wipcomputer/wip-ai-devops-toolbox`.
 
 ### Step 0: Check for LDM OS
 

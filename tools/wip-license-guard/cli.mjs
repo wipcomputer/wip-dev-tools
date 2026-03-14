@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { generateLicense, generateReadmeBlock } from './core.mjs';
+import { generateLicense, generateReadmeBlock, replaceReadmeLicenseSection, removeReadmeLicenseSection } from './core.mjs';
 
 const args = process.argv.slice(2);
 const HELP_FLAGS = ['--help', '-h', 'help'];
@@ -320,12 +320,128 @@ async function check(repoPath) {
   return issues;
 }
 
+async function readmeLicense(targetPath) {
+  log(`\n  wip-license-guard readme-license${FIX ? ' --fix' : ''}\n`);
+
+  // Detect if targetPath is a single repo or a directory of repos
+  const repos = [];
+  const configPath = join(targetPath, '.license-guard.json');
+  if (existsSync(configPath)) {
+    // Single repo
+    repos.push(targetPath);
+  } else {
+    // Directory of repos (or nested categories like ldm-os/components/)
+    const scanDir = (dir) => {
+      try {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '_trash') continue;
+          const sub = join(dir, entry.name);
+          if (existsSync(join(sub, '.license-guard.json'))) {
+            repos.push(sub);
+          } else if (existsSync(join(sub, 'package.json')) || existsSync(join(sub, 'README.md'))) {
+            repos.push(sub);
+          } else {
+            scanDir(sub); // recurse into category folders
+          }
+        }
+      } catch {}
+    };
+    scanDir(targetPath);
+  }
+
+  if (repos.length === 0) {
+    warn('No repos found. Point at a repo or a directory containing repos.');
+    return 1;
+  }
+
+  log(`  Found ${repos.length} repo(s)\n`);
+
+  let totalIssues = 0;
+
+  for (const repoPath of repos) {
+    const repoName = repoPath.split('/').pop();
+    const repoConfig = join(repoPath, '.license-guard.json');
+    const config = existsSync(repoConfig)
+      ? JSON.parse(readFileSync(repoConfig, 'utf8'))
+      : WIP_STANDARD;
+
+    // 1. Check main README
+    const readmePath = join(repoPath, 'README.md');
+    if (existsSync(readmePath)) {
+      const content = readFileSync(readmePath, 'utf8');
+      const expected = generateReadmeBlock(config);
+
+      if (content.includes('### Can I use this?') && content.includes('Dual-license model')) {
+        ok(`${repoName}/README.md ... standard license block`);
+      } else if (content.includes('## License')) {
+        warn(`${repoName}/README.md ... non-standard license section`);
+        totalIssues++;
+        if (FIX) {
+          const updated = replaceReadmeLicenseSection(content, config);
+          writeFileSync(readmePath, updated);
+          ok(`${repoName}/README.md ... updated to standard (--fix)`);
+          totalIssues--;
+        }
+      } else {
+        warn(`${repoName}/README.md ... missing ## License`);
+        totalIssues++;
+        if (FIX) {
+          const updated = replaceReadmeLicenseSection(content, config);
+          writeFileSync(readmePath, updated);
+          ok(`${repoName}/README.md ... added standard block (--fix)`);
+          totalIssues--;
+        }
+      }
+    } else {
+      warn(`${repoName}/README.md ... not found`);
+      totalIssues++;
+    }
+
+    // 2. Check sub-tool READMEs (should NOT have license sections)
+    const toolsDir = join(repoPath, 'tools');
+    if (existsSync(toolsDir)) {
+      try {
+        for (const tool of readdirSync(toolsDir, { withFileTypes: true })) {
+          if (!tool.isDirectory()) continue;
+          const subReadme = join(toolsDir, tool.name, 'README.md');
+          if (!existsSync(subReadme)) continue;
+
+          const subContent = readFileSync(subReadme, 'utf8');
+          if (subContent.includes('## License')) {
+            warn(`${repoName}/tools/${tool.name}/README.md ... has license section (should be removed)`);
+            totalIssues++;
+            if (FIX) {
+              const cleaned = removeReadmeLicenseSection(subContent);
+              writeFileSync(subReadme, cleaned);
+              ok(`${repoName}/tools/${tool.name}/README.md ... license section removed (--fix)`);
+              totalIssues--;
+            }
+          }
+        }
+      } catch {}
+    }
+  }
+
+  log('');
+  if (totalIssues === 0) {
+    log('  All README license sections are correct.\n');
+  } else {
+    log(`  ${totalIssues} issue(s) found. Run with --fix to auto-repair.\n`);
+  }
+
+  return totalIssues;
+}
+
 // Main
 if (command === 'init') {
   await init(target === 'init' ? '.' : target);
 } else if (command === 'check') {
   const repoPath = (target === 'check') ? '.' : target;
   const issues = await check(repoPath);
+  process.exit(issues > 0 ? 1 : 0);
+} else if (command === 'readme-license') {
+  const repoPath = (target === 'readme-license') ? '.' : target;
+  const issues = await readmeLicense(repoPath);
   process.exit(issues > 0 ? 1 : 0);
 } else if (command === '--help' || command === '-h' || command === 'help') {
   console.log(`
@@ -336,6 +452,8 @@ if (command === 'init') {
     init --from-standard       Apply WIP Computer defaults (MIT+AGPL, CLA, attribution).
     check [path]               Audit repo against saved config. Exit 1 if issues found.
     check --fix [path]         Auto-fix issues (update LICENSE files, wrong copyright).
+    readme-license [path]      Scan README license sections. Works on one repo or a directory of repos.
+    readme-license --fix       Apply standard license block to all READMEs. Remove from sub-tools.
     help                       Show this help.
 
   On first run, if no config exists, check will offer to run init.

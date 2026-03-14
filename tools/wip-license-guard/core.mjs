@@ -131,15 +131,59 @@ AGPLv3. AGPLv3 for personal use is free.${attribution ? '\n\n' + attribution : '
 
   return `## License
 
+Dual-license model designed to keep tools free while preventing commercial resellers.
+
 \`\`\`
 MIT      All CLI tools, MCP servers, skills, and hooks (use anywhere, no restrictions).
 AGPLv3   Commercial redistribution, marketplace listings, or bundling into paid services.
 \`\`\`
 
-Dual-license model designed to keep tools free while preventing commercial resellers.
-
 AGPLv3 for personal use is free. Commercial licenses available.
 
+### Can I use this?
+
+**Yes, freely:**
+- Use any tool locally or on your own servers
+- Modify the code for your own projects
+- Include in your internal CI/CD pipelines
+- Fork it and send us feedback via PRs (we'd love that)
+
+**Need a commercial license:**
+- Bundle into a product you sell
+- List on a marketplace (VS Code, JetBrains, etc.)
+- Offer as part of a hosted/SaaS platform
+- Redistribute commercially
+
 Using these tools to build your own software is fine. Reselling the tools themselves is what requires a commercial license.
+
+By submitting a PR, you agree to the [Contributor License Agreement](CLA.md).
 ${attribution ? '\n' + attribution : ''}`;
+}
+
+/**
+ * Replace ## License section in readme content.
+ * If no ## License exists, appends the block at the end.
+ * Returns the updated content.
+ */
+export function replaceReadmeLicenseSection(content, config) {
+  const block = generateReadmeBlock(config);
+
+  // Match from "## License" to the next ## heading or end of file
+  const licenseRegex = /## License[\s\S]*?(?=\n## [^#]|\n---\s*$|$)/;
+  if (licenseRegex.test(content)) {
+    return content.replace(licenseRegex, block.trimEnd());
+  }
+
+  // No license section found, append
+  return content.trimEnd() + '\n\n' + block;
+}
+
+/**
+ * Remove ## License section from content (for sub-tool READMEs).
+ * Returns the updated content.
+ */
+export function removeReadmeLicenseSection(content) {
+  // Match from "## License" to the next ## heading or end of file
+  const licenseRegex = /\n## License[\s\S]*?(?=\n## [^#]|$)/;
+  return content.replace(licenseRegex, '').trimEnd() + '\n';
 }

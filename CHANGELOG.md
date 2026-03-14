@@ -28,6 +28,11 @@
 
 
 
+
+## 1.9.14 (2026-03-14)
+
+Add readme-license command to wip-license-guard. Scans all repos, applies standard license block, removes from sub-tools. License Guard now Stable.
+
 ## 1.9.13 (2026-03-14)
 
 Release.

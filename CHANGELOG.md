@@ -27,6 +27,11 @@
 
 
 
+
+## 1.9.13 (2026-03-14)
+
+Release.
+
 ## 1.9.12 (2026-03-13)
 
 Add skill publish to website: after every release, SKILL.md is auto-copied to yoursite.com/install/{name}.txt and deployed. Configured per repo with .publish-skill.json. Non-blocking.

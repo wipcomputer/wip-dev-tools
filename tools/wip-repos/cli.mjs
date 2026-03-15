@@ -12,7 +12,16 @@
  */
 
 import { check, planSync, executeSync, addRepo, moveRepo, generateReadmeTree, loadManifest } from './core.mjs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 const args = process.argv.slice(2);
 const command = args[0];

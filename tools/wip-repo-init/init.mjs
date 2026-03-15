@@ -9,12 +9,18 @@
 //   2. Moves old ai/ contents into ai/_sort/ai_old/
 //   3. You sort from there at your own pace.
 
-import { existsSync, mkdirSync, cpSync, renameSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, cpSync, renameSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 const TEMPLATE = join(__dirname, 'templates');
 
 const targetRepo = resolve(process.argv[2] || process.cwd());

@@ -98,6 +98,15 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
   }
 }
 
+if (args.includes('--version') || args.includes('-v')) {
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
+
 if (!level || args.includes('--help') || args.includes('-h')) {
   const cwd = process.cwd();
   let current = '';

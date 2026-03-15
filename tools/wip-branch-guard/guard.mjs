@@ -49,8 +49,6 @@ const BLOCKED_BASH_PATTERNS = [
   /\brm\s+/,
   /\bmkdir\s+/,
   /\btouch\s+/,
-  /\bnpm\s+link\b/,
-  /\bnpm\s+install\s+-g\b/,
   />\s/,          // redirects
   /\btee\s+/,
   /\bsed\s+-i/,
@@ -77,6 +75,8 @@ const ALLOWED_BASH_PATTERNS = [
   /--dry-run/,
   /--help/,
   /\bwip-release\b.*--dry-run/,
+  /\bnpm\s+install\s+-g\b/,   // global installs modify /opt/homebrew/, not the repo
+  /\bnpm\s+link\b/,            // global operation, not repo-local
 ];
 
 function deny(reason) {

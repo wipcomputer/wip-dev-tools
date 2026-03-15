@@ -5,8 +5,16 @@
 // - Blocks Write tool on protected files entirely
 // - Blocks Edit when net line removal > 2 lines
 
-import { basename } from 'node:path';
-import { existsSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 // Exact basename matches
 export const PROTECTED = new Set([

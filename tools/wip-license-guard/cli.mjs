@@ -4,9 +4,17 @@
 // Ensures correct copyright, dual-license blocks, and LICENSE files.
 
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { generateLicense, generateCLA, generateReadmeBlock, replaceReadmeLicenseSection, removeReadmeLicenseSection } from './core.mjs';
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 const args = process.argv.slice(2);
 const HELP_FLAGS = ['--help', '-h', 'help'];

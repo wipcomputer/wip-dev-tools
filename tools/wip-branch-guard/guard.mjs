@@ -5,8 +5,16 @@
 // Agents must work on branches or worktrees. Never on main.
 
 import { execSync } from 'node:child_process';
-import { dirname } from 'node:path';
-import { statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { statSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 // Tools that modify files or git state
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'NotebookEdit']);

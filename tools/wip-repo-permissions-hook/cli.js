@@ -9,7 +9,17 @@
  *   wip-repo-permissions can-publish <org/repo> Alias for check
  */
 
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { checkPrivateCounterpart, auditOrg } from './core.mjs';
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
 
 const args = process.argv.slice(2);
 const command = args[0];

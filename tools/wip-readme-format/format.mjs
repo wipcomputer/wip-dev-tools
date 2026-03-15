@@ -28,6 +28,13 @@ import { fileURLToPath } from 'node:url';
 import { detectInterfaces, detectToolbox } from '../wip-universal-installer/detect.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
+
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
 const CHECK = args.includes('--check');

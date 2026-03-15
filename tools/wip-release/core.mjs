@@ -227,26 +227,36 @@ function checkReleaseNotes(notes, notesSource, level) {
   const issues = [];
 
   if (!notes) {
-    issues.push('No release notes provided. Write a RELEASE-NOTES-v{version}.md or ai/dev-updates/ file.');
+    issues.push('No release notes found. A file is REQUIRED.');
+    issues.push('Write RELEASE-NOTES-v{version}.md or ai/dev-updates/YYYY-MM-DD--description.md');
+    issues.push('Commit it on your branch so it is reviewable in the PR.');
     return { ok: false, issues, block: true };
   }
 
-  // Notes too short. All levels blocked.
+  // HARD RULE: release notes must come from a file on disk.
+  // --notes flag is NOT accepted. Write a file. Commit it. Review it.
+  if (notesSource === 'flag') {
+    issues.push('Release notes must come from a file, not the --notes flag.');
+    issues.push('Write RELEASE-NOTES-v{version}.md or ai/dev-updates/YYYY-MM-DD--description.md');
+    issues.push('Commit it on your branch so it is reviewable in the PR before merge.');
+    return { ok: false, issues, block: true };
+  }
+
+  // Notes too short.
   if (notes.length < 50) {
     issues.push('Release notes are too short (under 50 chars). Explain what changed and why.');
-    issues.push('Write a RELEASE-NOTES-v{version}.md or ai/dev-updates/ file.');
   }
 
-  // Bare --notes flag for minor/major is never acceptable.
-  if (notesSource === 'flag' && (level === 'minor' || level === 'major')) {
-    issues.push('Minor/major releases require a file, not --notes flag.');
-    issues.push('Write RELEASE-NOTES-v{version}.md (dashes not dots) and commit it.');
-  }
-
-  // Check for changelog-style one-liners regardless of source
+  // Check for changelog-style one-liners
   const looksLikeChangelog = /^(fix|add|update|remove|bump|chore|refactor|docs?)[\s:]/i.test(notes);
   if (looksLikeChangelog && notes.length < 100) {
     issues.push('Notes look like a changelog entry, not a narrative. Explain the impact.');
+  }
+
+  // Release notes should reference at least one issue
+  const hasIssueRef = /#\d+/.test(notes);
+  if (!hasIssueRef) {
+    issues.push('No issue reference found (#XX). Every release should close or reference an issue.');
   }
 
   return { ok: issues.length === 0, issues, block: issues.length > 0 };
@@ -264,6 +274,19 @@ export function scaffoldReleaseNotes(repoPath, version) {
   const pkg = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
   const name = pkg.name?.replace(/^@[^/]+\//, '') || basename(repoPath);
 
+  // Auto-detect issue references from commits since last tag
+  let issueRefs = '';
+  try {
+    const lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'],
+      { cwd: repoPath, encoding: 'utf8' }).trim();
+    const log = execFileSync('git', ['log', `${lastTag}..HEAD`, '--oneline'],
+      { cwd: repoPath, encoding: 'utf8' });
+    const issues = [...new Set(log.match(/#\d+/g) || [])];
+    if (issues.length > 0) {
+      issueRefs = issues.map(i => `- ${i}`).join('\n');
+    }
+  } catch {}
+
   const template = `# Release Notes: ${name} v${version}
 
 **One-line summary of what this release does**
@@ -278,6 +301,10 @@ Describe the changes. Not a commit list. Explain:
 ## Why
 
 What problem does this solve? What was broken or missing?
+
+## Issues closed
+
+${issueRefs || '- #XX (replace with actual issue numbers)'}
 
 ## How to verify
 
@@ -495,6 +522,23 @@ export function createGitHubRelease(repoPath, newVersion, notes, currentVersion)
         console.warn(`  ! GitHub release body is only ${bodyLen} chars. Notes may be truncated.`);
       }
     } catch {}
+
+    // Auto-close referenced issues
+    const issueNums = [...new Set((body.match(/#(\d+)/g) || []).map(m => m.slice(1)))];
+    for (const num of issueNums) {
+      try {
+        // Only close if issue exists and is open on the public repo
+        const publicSlug = repoSlug.replace(/-private$/, '');
+        execFileSync('gh', [
+          'issue', 'close', num,
+          '--repo', publicSlug,
+          '--comment', `Closed by v${newVersion}. See release notes.`
+        ], { cwd: repoPath, stdio: 'pipe' });
+        console.log(`  ✓ Closed #${num} on ${publicSlug}`);
+      } catch {
+        // Issue doesn't exist on public repo or already closed. Fine.
+      }
+    }
   } finally {
     try { execFileSync('rm', ['-f', tmpFile]); } catch {}
   }

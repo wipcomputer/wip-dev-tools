@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-license-hook",
-  "version": "1.9.28",
+  "version": "1.9.30",
   "description": "License rug-pull detection and dependency license compliance for open source projects",
   "type": "module",
   "main": "dist/cli/index.js",

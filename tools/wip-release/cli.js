@@ -119,12 +119,12 @@ Flags:
   --skip-stale-check       Skip stale remote branch check
   --skip-worktree-check    Skip worktree guard (allow release from worktree)
 
-Release notes (highest priority wins, files ALWAYS beat --notes flag):
-  1. --notes-file=path          Explicit file path (always wins)
-  2. RELEASE-NOTES-v{ver}.md    In repo root (wins over --notes)
-  3. ai/dev-updates/YYYY-MM-DD* Today's dev update (wins over --notes if longer)
-  4. --notes="text"             Fallback only (use for repos without release notes files)
-  Written notes on disk always take priority over a CLI one-liner.
+Release notes (REQUIRED, must be a file on disk):
+  1. --notes-file=path          Explicit file path
+  2. RELEASE-NOTES-v{ver}.md    In repo root (auto-detected)
+  3. ai/dev-updates/YYYY-MM-DD* Today's dev update (auto-detected)
+  The --notes flag is NOT accepted. Write a file. Commit it on your branch.
+  The file shows up in the PR diff so it can be reviewed before merge.
 
 Skill publish to website:
   Add .publish-skill.json to repo root: { "name": "my-tool" }

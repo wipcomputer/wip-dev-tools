@@ -205,10 +205,30 @@ async function main() {
     repoDir = process.env.CWD || process.cwd();
   }
 
-  // Check if the target repo is on main
+  // Check if the target repo is on main AND if we're in a worktree
   const branch = getCurrentBranch(repoDir);
-  if (!branch || (branch !== 'main' && branch !== 'master')) {
-    // Not on main, allow everything
+  const worktree = isInWorktree(repoDir);
+
+  if (!branch) {
+    // Not in a git repo, allow
+    process.exit(0);
+  }
+
+  if (branch !== 'main' && branch !== 'master' && worktree) {
+    // On a branch AND in a worktree. Correct workflow. Allow.
+    process.exit(0);
+  }
+
+  if (branch !== 'main' && branch !== 'master' && !worktree) {
+    // On a branch but NOT in a worktree. Block writes.
+    const isWriteOp = WRITE_TOOLS.has(toolName) ||
+      (toolName === BASH_TOOL && command &&
+        BLOCKED_BASH_PATTERNS.some(p => p.test(command)) &&
+        !ALLOWED_BASH_PATTERNS.some(p => p.test(command)));
+    if (isWriteOp) {
+      deny(`BLOCKED: On branch "${branch}" but not in a worktree. Use: git worktree add ../my-worktree -b ${branch}`);
+      process.exit(0);
+    }
     process.exit(0);
   }
 
@@ -216,7 +236,7 @@ async function main() {
 
   // Block Write/Edit tools entirely on main
   if (WRITE_TOOLS.has(toolName)) {
-    deny(`BLOCKED: Cannot ${toolName} while on main branch. Create a branch first: git checkout -b cc-mini/your-feature. Or use a worktree.`);
+    deny(`BLOCKED: Cannot ${toolName} while on main branch. Use a worktree: git worktree add ../my-worktree -b cc-mini/your-feature`);
     process.exit(0);
   }
 
@@ -238,7 +258,7 @@ async function main() {
           if (ap.test(command)) { isAllowed = true; break; }
         }
         if (!isAllowed) {
-          deny(`BLOCKED: Cannot run "${command.substring(0, 60)}..." on main branch. Create a branch first.`);
+          deny(`BLOCKED: Cannot run "${command.substring(0, 60)}..." on main branch. Use a worktree: git worktree add ../my-worktree -b cc-mini/your-feature`);
           process.exit(0);
         }
       }
@@ -253,7 +273,7 @@ async function main() {
           if (ap.test(command)) { isAllowed = true; break; }
         }
         if (!isAllowed) {
-          deny(`BLOCKED: Cannot run file-modifying command on main branch. Create a branch first.`);
+          deny(`BLOCKED: Cannot run file-modifying command on main branch. Use a worktree: git worktree add ../my-worktree -b cc-mini/your-feature`);
           process.exit(0);
         }
       }

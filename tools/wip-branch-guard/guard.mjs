@@ -86,6 +86,9 @@ const ALLOWED_BASH_PATTERNS = [
   /\bwip-release\b.*--dry-run/,
   /\bnpm\s+install\s+-g\b/,   // global installs modify /opt/homebrew/, not the repo
   /\bnpm\s+link\b/,            // global operation, not repo-local
+  /\bldm\s+(install|init|doctor|stack|updates)\b/,  // LDM OS commands modify ~/.ldm/, not the repo
+  /\brm\s+.*\.ldm\/state\//,    // cleaning LDM state files only, not repo files
+  /\bclaude\s+mcp\b/,          // MCP registration, not repo files
 ];
 
 function deny(reason) {

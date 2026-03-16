@@ -285,7 +285,40 @@ if [[ -n "${VERSION:-}" ]]; then
         done
       fi
 
-      cd - > /dev/null
+      # Publish to GitHub Packages from public repo (#193)
+      echo "Publishing to GitHub Packages from public repo..."
+      GH_TOKEN=$(gh auth token 2>/dev/null || echo "")
+      if [[ -n "$GH_TOKEN" ]]; then
+        cd "$NPM_TMPDIR/public"
+
+        # Root package
+        if [[ "$IS_PRIVATE" != "true" ]]; then
+          echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" > .npmrc
+          npm publish --registry https://npm.pkg.github.com/ --access public 2>/dev/null && echo "  ✓ Published root to GitHub Packages" || echo "  ✗ Root GitHub Packages publish failed (non-fatal)"
+          rm -f .npmrc
+        fi
+
+        # Sub-tools
+        if [[ -d "tools" ]]; then
+          for TOOL_DIR in tools/*/; do
+            if [[ -f "${TOOL_DIR}package.json" ]]; then
+              TOOL_PRIVATE=$(node -p "require('./${TOOL_DIR}package.json').private || false" 2>/dev/null)
+              if [[ "$TOOL_PRIVATE" != "true" ]]; then
+                TOOL_NAME=$(node -p "require('./${TOOL_DIR}package.json').name" 2>/dev/null)
+                echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" > "${TOOL_DIR}.npmrc"
+                (cd "$TOOL_DIR" && npm publish --registry https://npm.pkg.github.com/ --access public 2>/dev/null) && echo "  ✓ Published $TOOL_NAME to GitHub Packages" || echo "  ✗ GitHub Packages failed for $TOOL_NAME (non-fatal)"
+                rm -f "${TOOL_DIR}.npmrc"
+              fi
+            fi
+          done
+        fi
+
+        cd - > /dev/null
+      else
+        echo "  ! gh auth token not found. Skipping GitHub Packages publish."
+      fi
+
+      cd - > /dev/null 2>/dev/null || true
     else
       echo "  ! npm Token not found in 1Password. Skipping npm publish."
     fi

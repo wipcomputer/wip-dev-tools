@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-repo-permissions-hook",
-  "version": "1.9.36",
+  "version": "1.9.37",
   "type": "module",
   "description": "Repo visibility guard. Blocks repos from going public without a -private counterpart.",
   "main": "core.mjs",

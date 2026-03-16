@@ -66,65 +66,6 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - *Stable*
 - [Read more about LDM Dev Tools.app](tools/ldm-jobs/README.md)
 
-### Release & Deploy
-
-**Release Pipeline**
-- Release software correctly. Version bump, changelog, npm publish, GitHub release. One command, nothing forgotten.
-- SKILL.md sync, release notes on the branch for PR review. Warns when notes are too short or look like changelogs instead of narrative
-- **Interfaces:** CLI, Module, MCP, Skill
-- *Stable*
-- [Read more about Release Pipeline](tools/wip-release/README.md)
-
-**Private-to-Public Sync**
-- Publish safely. Syncs private to public, excludes internal files, every time.
-- One script syncs your private working repo to a clean public mirror. Excludes internal `ai/` folders automatically. Creates a PR, merges it, cleans up branches
-- **Interfaces:** CLI, Skill
-- *Stable*
-- [Read more about Private-to-Public Sync](tools/deploy-public/README.md)
-
-**Post-Merge Branch Naming**
-- Cleans up after itself. Merged branches get renamed with dates automatically.
-- Renames merged branches with `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list
-- **Interfaces:** CLI, Skill
-- *Stable*
-- [Read more about Post-Merge Naming](tools/post-merge-rename/README.md)
-
-**Skill Publish to Website**
-- After every release, your SKILL.md goes live as plain text on your website. No manual copying. No forgetting.
-- Add `.publish-skill.json` to your repo with `name` and `websiteRepo`. On release, SKILL.md is copied to `yoursite.com/install/{name}.txt` and deployed automatically. Any AI can fetch the URL and get clean, parseable instructions. Like `robots.txt` but for agent install prompts.
-- **Interfaces:** Module (built into Release Pipeline)
-- *Stable*
-
-**Make Discoverable in Claude Code**
-- Turn any repo into a Claude Code plugin. Auto-generates `.claude-plugin/plugin.json` from your existing interfaces.
-- Runs during release. Detects what your repo exposes (skills, hooks, MCP servers, agents) and builds the plugin manifest so it shows up in Claude Code's `/plugin` marketplace. No manual config.
-- **Interfaces:** Module (built into Release Pipeline)
-- *Planned*
-
-### License, Compliance, and Protection
-
-**Identity File Protection**
-- Know what it can never overwrite. CLAUDE.md, SOUL.md, MEMORY.md, SHARED-CONTEXT.md are permanently protected.
-- Blocks destructive edits to protected identity files. Your AI can read them but can't blow them away
-- **Interfaces:** CLI, Module, OpenClaw, Skill, CC Hook
-- *Stable*
-- [Read more about Identity File Protection](tools/wip-file-guard/README.md)
-
-**License Guard**
-- Enforce licensing on every commit. Copyright, dual-license, CLA. Checked automatically.
-- Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues
-- `readme-license` scans all your repos and applies a standard license block to every README in one command. Removes duplicate license sections from sub-tool READMEs
-- **Interfaces:** CLI
-- *Stable*
-- [Read more about License Guard](tools/wip-license-guard/README.md)
-
-**License Rug-Pull Detection**
-- Catch license changes in dependencies before they ship.
-- Scans every dependency for license changes. Blocks merges if a license changed upstream. Daily cron scan. Generates a public compliance dashboard
-- **Interfaces:** CLI, Module, MCP, Skill
-- *Stable*
-- [Read more about License Detection](tools/wip-license-hook/README.md)
-
 ### Repo Management
 
 **Repo Visibility Guard**
@@ -168,6 +109,65 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 - *Stable*
 - [Read more about Branch Guard](tools/wip-branch-guard/INSTALL.md)
 
+### License, Compliance, and Protection
+
+**Identity File Protection**
+- Know what it can never overwrite. CLAUDE.md, SOUL.md, MEMORY.md, SHARED-CONTEXT.md are permanently protected.
+- Blocks destructive edits to protected identity files. Your AI can read them but can't blow them away
+- **Interfaces:** CLI, Module, OpenClaw, Skill, CC Hook
+- *Stable*
+- [Read more about Identity File Protection](tools/wip-file-guard/README.md)
+
+**License Guard**
+- Enforce licensing on every commit. Copyright, dual-license, CLA. Checked automatically.
+- Ensures your own repos have correct copyright, license type, and LICENSE files. Interactive first-run setup. Toolbox-aware: checks every sub-tool. Auto-fix mode repairs issues
+- `readme-license` scans all your repos and applies a standard license block to every README in one command. Removes duplicate license sections from sub-tool READMEs
+- **Interfaces:** CLI
+- *Stable*
+- [Read more about License Guard](tools/wip-license-guard/README.md)
+
+**License Rug-Pull Detection**
+- Catch license changes in dependencies before they ship.
+- Scans every dependency for license changes. Blocks merges if a license changed upstream. Daily cron scan. Generates a public compliance dashboard
+- **Interfaces:** CLI, Module, MCP, Skill
+- *Stable*
+- [Read more about License Detection](tools/wip-license-hook/README.md)
+
+### Release & Deploy
+
+**Release Pipeline**
+- Release software correctly. Version bump, changelog, npm publish, GitHub release. One command, nothing forgotten.
+- SKILL.md sync, release notes on the branch for PR review. Warns when notes are too short or look like changelogs instead of narrative
+- **Interfaces:** CLI, Module, MCP, Skill
+- *Stable*
+- [Read more about Release Pipeline](tools/wip-release/README.md)
+
+**Private-to-Public Sync**
+- Publish safely. Syncs private to public, excludes internal files, every time.
+- One script syncs your private working repo to a clean public mirror. Excludes internal `ai/` folders automatically. Creates a PR, merges it, cleans up branches
+- **Interfaces:** CLI, Skill
+- *Stable*
+- [Read more about Private-to-Public Sync](tools/deploy-public/README.md)
+
+**Post-Merge Branch Naming**
+- Cleans up after itself. Merged branches get renamed with dates automatically.
+- Renames merged branches with `--merged-YYYY-MM-DD`. Preserves history without cluttering your branch list
+- **Interfaces:** CLI, Skill
+- *Stable*
+- [Read more about Post-Merge Naming](tools/post-merge-rename/README.md)
+
+**Skill Publish to Website**
+- After every release, your SKILL.md goes live as plain text on your website. No manual copying. No forgetting.
+- Add `.publish-skill.json` to your repo with `name` and `websiteRepo`. On release, SKILL.md is copied to `yoursite.com/install/{name}.txt` and deployed automatically. Any AI can fetch the URL and get clean, parseable instructions. Like `robots.txt` but for agent install prompts.
+- **Interfaces:** Module (built into Release Pipeline)
+- *Stable*
+
+**Make Discoverable in Claude Code**
+- Turn any repo into a Claude Code plugin. Auto-generates `.claude-plugin/plugin.json` from your existing interfaces.
+- Runs during release. Detects what your repo exposes (skills, hooks, MCP servers, agents) and builds the plugin manifest so it shows up in Claude Code's `/plugin` marketplace. No manual config.
+- **Interfaces:** Module (built into Release Pipeline)
+- *Planned*
+
 ## Interface Coverage
 
 | # | Tool | CLI | Module | MCP | OC Plugin | Skill | CC Hook |
@@ -177,23 +177,23 @@ As Andrej Karpathy [said](https://x.com/karpathy/status/2024583544157458452): *"
 | 2 | Dev Guide | | | | | | |
 | | **Infrastructure** | | | | | | |
 | 3 | LDM Dev Tools.app | | | | | | |
-| | **Release & Deploy** | | | | | | |
-| 4 | Release Pipeline | Y | Y | Y | | Y | |
-| 5 | Private-to-Public Sync | Y | | | | Y | |
-| 6 | Post-Merge Branch Naming | Y | | | | Y | |
-| 7 | Skill Publish to Website | | Y | | | | |
-| 8 | Make Discoverable in CC | | Y | | | | |
-| | **License, Compliance, and Protection** | | | | | | |
-| 9 | Identity File Protection | Y | Y | | Y | Y | Y |
-| 10 | License Guard | Y | | | | | |
-| 11 | License Rug-Pull Detection | Y | Y | Y | | Y | |
 | | **Repo Management** | | | | | | |
-| 12 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
-| 13 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
-| 14 | Repo Init | Y | | | | Y | |
-| 15 | README Formatter | Y | | | | Y | |
-| 16 | Forced Git Worktrees | Y | | | | | Y |
-| 17 | Branch Guard | | | | | | Y |
+| 4 | Repo Visibility Guard | Y | Y | Y | Y | Y | Y |
+| 5 | Repo Manifest Reconciler | Y | Y | Y | | Y | |
+| 6 | Repo Init | Y | | | | Y | |
+| 7 | README Formatter | Y | | | | Y | |
+| 8 | Forced Git Worktrees | Y | | | | | Y |
+| 9 | Branch Guard | | | | | | Y |
+| | **License, Compliance, and Protection** | | | | | | |
+| 10 | Identity File Protection | Y | Y | | Y | Y | Y |
+| 11 | License Guard | Y | | | | | |
+| 12 | License Rug-Pull Detection | Y | Y | Y | | Y | |
+| | **Release & Deploy** | | | | | | |
+| 13 | Release Pipeline | Y | Y | Y | | Y | |
+| 14 | Private-to-Public Sync | Y | | | | Y | |
+| 15 | Post-Merge Branch Naming | Y | | | | Y | |
+| 16 | Skill Publish to Website | | Y | | | | |
+| 17 | Make Discoverable in Claude Code | | Y | | | | |
 
 ## More Info
 

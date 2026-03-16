@@ -941,7 +941,7 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     console.log(`  [dry run] Would commit and tag v${newVersion}`);
     if (!noPublish) {
       console.log(`  [dry run] Would publish to npm (@wipcomputer scope)`);
-      console.log(`  [dry run] Would publish to GitHub Packages`);
+      console.log(`  [dry run] GitHub Packages: handled by deploy-public.sh`);
       console.log(`  [dry run] Would create GitHub release v${newVersion}`);
       if (hasSkill) console.log(`  [dry run] Would publish to ClawHub`);
       // Skill-to-website dry run (auto-detects SKILL.md, no config needed)
@@ -1043,15 +1043,11 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       console.log(`  ✗ npm publish failed: ${e.message}`);
     }
 
-    // 7. GitHub Packages
-    try {
-      publishGitHubPackages(repoPath);
-      distResults.push({ target: 'GitHub Packages', status: 'ok', detail: `${newVersion}` });
-      console.log(`  ✓ Published to GitHub Packages`);
-    } catch (e) {
-      distResults.push({ target: 'GitHub Packages', status: 'failed', detail: e.message });
-      console.log(`  ✗ GitHub Packages publish failed: ${e.message}`);
-    }
+    // 7. GitHub Packages ... SKIPPED from private repos.
+    // deploy-public.sh publishes to GitHub Packages from the public repo clone.
+    // Publishing from private ties the package to the private repo, making it
+    // invisible on the public repo's Packages tab. (#53)
+    console.log(`  - GitHub Packages: handled by deploy-public.sh (from public repo)`);
 
     // 8. GitHub release
     try {

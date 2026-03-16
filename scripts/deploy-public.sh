@@ -158,7 +158,14 @@ if $DRY_RUN; then
   exit 0
 fi
 
-git commit -m "$COMMIT_MSG (from $COMMIT_HASH)"
+git commit -m "$(cat <<COMMITEOF
+$COMMIT_MSG (from $COMMIT_HASH)
+
+Co-Authored-By: Parker Todd Brooks <parkertoddbrooks@users.noreply.github.com>
+Co-Authored-By: Lēsa <lesaai@icloud.com>
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+COMMITEOF
+)"
 
 if [[ "$EMPTY_REPO" == "true" ]]; then
   # Empty repo: push directly to main (no base branch to PR against)

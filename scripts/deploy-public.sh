@@ -122,6 +122,12 @@ rsync -a \
 
 cd "$TMPDIR/public"
 
+# Rewrite package.json repository URL from private to public repo
+# GitHub Packages links packages to the repo in repository.url
+if [[ -f package.json ]] && grep -q "\-private" package.json 2>/dev/null; then
+  sed -i '' 's|-private\.git|.git|g; s|-private"|"|g' package.json
+fi
+
 # Check if there are changes
 if git diff --quiet HEAD -- 2>/dev/null && git diff --cached --quiet HEAD -- 2>/dev/null && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
   echo "No changes to deploy."

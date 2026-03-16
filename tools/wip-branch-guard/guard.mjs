@@ -3,6 +3,7 @@
 // PreToolUse hook for Claude Code.
 // Blocks ALL file writes and git commits when on main branch.
 // Agents must work on branches or worktrees. Never on main.
+// Also blocks dangerous flags (--no-verify, --force) on ANY branch.
 
 import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -170,6 +171,19 @@ async function main() {
 
   const toolName = input.tool_name || '';
   const toolInput = input.tool_input || {};
+
+  // Block dangerous flags on ANY branch (these bypass safety checks)
+  if (toolName === BASH_TOOL) {
+    const cmd = (toolInput.command || '');
+    if (/--no-verify\b/.test(cmd)) {
+      deny('BLOCKED: --no-verify bypasses git hooks. Remove it and let the hooks run.');
+      process.exit(0);
+    }
+    if (/\bgit\s+push\b.*--force\b/.test(cmd) && !/--force-with-lease\b/.test(cmd)) {
+      deny('BLOCKED: git push --force can destroy remote history. Use --force-with-lease or ask Parker.');
+      process.exit(0);
+    }
+  }
 
   // Determine which repo to check.
   // Claude Code always opens in .openclaw, but edits files in other repos.

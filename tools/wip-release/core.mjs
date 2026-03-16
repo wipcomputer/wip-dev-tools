@@ -384,6 +384,71 @@ function checkProductDocs(repoPath) {
 }
 
 /**
+ * Auto-update version/date lines in product docs before the release commit.
+ * Updates roadmap.md "Current version" and "Last updated",
+ * and readme-first-product.md "Last updated" and "What's Built (as of vX.Y.Z)".
+ * Returns number of files updated.
+ */
+function syncProductDocs(repoPath, newVersion) {
+  let updated = 0;
+  const today = new Date().toISOString().split('T')[0];
+
+  // 1. roadmap.md
+  const roadmapPath = join(repoPath, 'ai', 'product', 'plans-prds', 'roadmap.md');
+  if (existsSync(roadmapPath)) {
+    let content = readFileSync(roadmapPath, 'utf8');
+    let changed = false;
+
+    // Update "Current version: vX.Y.Z"
+    const versionRe = /(\*\*Current version:\*\*\s*)v[\d.]+/;
+    if (versionRe.test(content)) {
+      content = content.replace(versionRe, `$1v${newVersion}`);
+      changed = true;
+    }
+
+    // Update "Last updated: YYYY-MM-DD"
+    const dateRe = /(\*\*Last updated:\*\*\s*)[\d-]+/;
+    if (dateRe.test(content)) {
+      content = content.replace(dateRe, `$1${today}`);
+      changed = true;
+    }
+
+    if (changed) {
+      writeFileSync(roadmapPath, content);
+      updated++;
+    }
+  }
+
+  // 2. readme-first-product.md
+  const rfpPath = join(repoPath, 'ai', 'product', 'readme-first-product.md');
+  if (existsSync(rfpPath)) {
+    let content = readFileSync(rfpPath, 'utf8');
+    let changed = false;
+
+    // Update "Last updated: YYYY-MM-DD"
+    const dateRe = /(\*\*Last updated:\*\*\s*)[\d-]+/;
+    if (dateRe.test(content)) {
+      content = content.replace(dateRe, `$1${today}`);
+      changed = true;
+    }
+
+    // Update "What's Built (as of vX.Y.Z)"
+    const builtRe = /(What's Built \(as of\s*)v[\d.]+(\))/;
+    if (builtRe.test(content)) {
+      content = content.replace(builtRe, `$1v${newVersion}$2`);
+      changed = true;
+    }
+
+    if (changed) {
+      writeFileSync(rfpPath, content);
+      updated++;
+    }
+  }
+
+  return updated;
+}
+
+/**
  * Build release notes with narrative first, commit details second.
  *
  * Release notes should tell the story: what was built, why, and why it matters.
@@ -1014,6 +1079,12 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   const trashed = trashReleaseNotes(repoPath);
   if (trashed > 0) {
     console.log(`  ✓ Moved ${trashed} RELEASE-NOTES file(s) to _trash/`);
+  }
+
+  // 3.75. Auto-update product docs version/date
+  const docsUpdated = syncProductDocs(repoPath, newVersion);
+  if (docsUpdated > 0) {
+    console.log(`  ✓ Product docs synced to v${newVersion} (${docsUpdated} file(s))`);
   }
 
   // 4. Git commit + tag

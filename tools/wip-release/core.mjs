@@ -89,7 +89,8 @@ export function syncSkillVersion(repoPath, newVersion) {
  */
 export function updateChangelog(repoPath, newVersion, notes) {
   const changelogPath = join(repoPath, 'CHANGELOG.md');
-  const date = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   // Bug fix #121: never silently default to "Release." when notes are empty.
   // If notes are empty at this point, warn loudly.
@@ -579,7 +580,8 @@ function checkInterfaceCoverage(repoPath) {
  */
 function syncProductDocs(repoPath, newVersion) {
   let updated = 0;
-  const today = new Date().toISOString().split('T')[0];
+  const td = new Date();
+  const today = `${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}-${String(td.getDate()).padStart(2,'0')}`;
 
   // 1. roadmap.md
   const roadmapPath = join(repoPath, 'ai', 'product', 'plans-prds', 'roadmap.md');

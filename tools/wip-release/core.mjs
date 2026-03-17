@@ -499,7 +499,7 @@ function getToolDisplayName(toolPath) {
 
 /**
  * Check that the interface coverage table in README.md and SKILL.md
- * matches the actual interfaces detected in tools/*/.
+ * matches the actual interfaces detected in tools/* subdirectories.
  * Returns { missing: string[], ok: boolean, skipped: boolean }.
  */
 function checkInterfaceCoverage(repoPath) {

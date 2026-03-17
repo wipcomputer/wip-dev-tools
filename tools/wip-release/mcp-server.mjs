@@ -31,6 +31,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           dryRun: { type: 'boolean', description: 'Preview only, no changes', default: false },
           noPublish: { type: 'boolean', description: 'Bump + tag only, skip npm/GitHub publish', default: false },
           skipProductCheck: { type: 'boolean', description: 'Skip product doc freshness check', default: false },
+          skipTechDocsCheck: { type: 'boolean', description: 'Skip technical docs freshness check', default: false },
+          skipCoverageCheck: { type: 'boolean', description: 'Skip interface coverage table check', default: false },
         },
         required: ['level', 'notes'],
       },
@@ -65,6 +67,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         notesSource: 'flag', // MCP always passes notes directly
         noPublish: args.noPublish || false,
         skipProductCheck: args.skipProductCheck || false,
+        skipTechDocsCheck: args.skipTechDocsCheck || false,
+        skipCoverageCheck: args.skipCoverageCheck || false,
       });
       return {
         content: [{

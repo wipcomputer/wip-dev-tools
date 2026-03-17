@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-file-guard",
-  "version": "1.9.40",
+  "version": "1.9.41",
   "type": "module",
   "description": "Hook that blocks destructive edits to protected identity files. For Claude Code CLI and OpenClaw.",
   "main": "guard.mjs",

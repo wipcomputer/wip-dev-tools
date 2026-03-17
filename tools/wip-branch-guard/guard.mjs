@@ -7,7 +7,7 @@
 
 import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
-import { statSync, readFileSync } from 'node:fs';
+import { statSync, readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 if (process.argv.includes('--version') || process.argv.includes('-v')) {
@@ -185,6 +185,23 @@ async function main() {
     if (/\bgit\s+push\b.*--force\b/.test(cmd) && !/--force-with-lease\b/.test(cmd)) {
       deny('BLOCKED: git push --force can destroy remote history. Use --force-with-lease or ask Parker.');
       process.exit(0);
+    }
+
+    // Block npm install -g right after a release (#73)
+    // wip-release writes ~/.ldm/state/.last-release on completion.
+    // If a release happened < 5 minutes ago, block install unless user explicitly said "install".
+    if (/\bnpm\s+install\s+-g\b/.test(cmd)) {
+      try {
+        const releasePath = join(process.env.HOME || '', '.ldm', 'state', '.last-release');
+        if (existsSync(releasePath)) {
+          const data = JSON.parse(readFileSync(releasePath, 'utf8'));
+          const age = Date.now() - new Date(data.timestamp).getTime();
+          if (age < 5 * 60 * 1000) { // 5 minutes
+            deny(`BLOCKED: Release completed ${Math.round(age / 1000)}s ago. Dogfood first. Remove ~/.ldm/state/.last-release when ready to install.`);
+            process.exit(0);
+          }
+        }
+      } catch {}
     }
   }
 

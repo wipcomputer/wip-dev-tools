@@ -218,6 +218,11 @@ async function main() {
   if (filePath) {
     // Walk up from file path to find .git directory
     repoDir = findRepoRoot(filePath);
+    if (!repoDir) {
+      // File is outside any git repo (e.g. ~/.claude/plans/, /tmp/).
+      // The guard only protects git repos. Allow it.
+      process.exit(0);
+    }
   }
 
   if (!repoDir && command) {

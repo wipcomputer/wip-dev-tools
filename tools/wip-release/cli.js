@@ -77,7 +77,8 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
       const { readdirSync } = await import('node:fs');
       const devUpdatesDir = join(process.cwd(), 'ai', 'dev-updates');
       if (existsSync(devUpdatesDir)) {
-        const today = new Date().toISOString().split('T')[0];
+        const d = new Date();
+        const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const todayFiles = readdirSync(devUpdatesDir)
           .filter(f => f.startsWith(today) && f.endsWith('.md'))
           .sort()

@@ -21,6 +21,8 @@ const noPublish = args.includes('--no-publish');
 const skipProductCheck = args.includes('--skip-product-check');
 const skipStaleCheck = args.includes('--skip-stale-check');
 const skipWorktreeCheck = args.includes('--skip-worktree-check');
+const skipTechDocsCheck = args.includes('--skip-tech-docs-check');
+const skipCoverageCheck = args.includes('--skip-coverage-check');
 const notesFilePath = flag('notes-file');
 let notes = flag('notes');
 // Bug fix #121: use strict check, not truthiness. --notes="" is empty, not absent.
@@ -164,6 +166,8 @@ release({
   skipProductCheck,
   skipStaleCheck,
   skipWorktreeCheck,
+  skipTechDocsCheck,
+  skipCoverageCheck,
 }).catch(err => {
   console.error(`  ✗ ${err.message}`);
   process.exit(1);

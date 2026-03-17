@@ -384,6 +384,194 @@ function checkProductDocs(repoPath) {
 }
 
 /**
+ * Check that technical docs (SKILL.md, TECHNICAL.md) were updated
+ * when source code changed since last release tag.
+ * Returns { missing: string[], ok: boolean, skipped: boolean }.
+ */
+function checkTechnicalDocs(repoPath) {
+  try {
+    let lastTag;
+    try {
+      lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'],
+        { cwd: repoPath, encoding: 'utf8' }).trim();
+    } catch {
+      return { missing: [], ok: true, skipped: true }; // No tags yet
+    }
+
+    const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD'],
+      { cwd: repoPath, encoding: 'utf8' });
+    const changedFiles = diff.split('\n').map(f => f.trim()).filter(Boolean);
+
+    // Find source code changes (*.mjs, *.js, *.ts) excluding non-source dirs
+    const excludePattern = /\/(node_modules|dist|_trash|examples)\//;
+    const sourcePattern = /\.(mjs|js|ts)$/;
+    const sourceChanges = changedFiles.filter(f =>
+      sourcePattern.test(f) && !excludePattern.test(f) && !f.startsWith('ai/')
+    );
+
+    if (sourceChanges.length === 0) {
+      return { missing: [], ok: true, skipped: false }; // No source changes
+    }
+
+    // Check if any doc files were also modified
+    const docChanges = changedFiles.filter(f =>
+      f === 'SKILL.md' || f === 'TECHNICAL.md' ||
+      /^tools\/[^/]+\/SKILL\.md$/.test(f) ||
+      /^tools\/[^/]+\/TECHNICAL\.md$/.test(f)
+    );
+
+    if (docChanges.length > 0) {
+      return { missing: [], ok: true, skipped: false }; // Docs updated
+    }
+
+    // Source changed but no doc updates
+    const missing = [];
+    const preview = sourceChanges.slice(0, 5).join(', ');
+    const more = sourceChanges.length > 5 ? ` (and ${sourceChanges.length - 5} more)` : '';
+    missing.push('Source files changed since last tag but no SKILL.md or TECHNICAL.md was updated');
+    missing.push(`Changed: ${preview}${more}`);
+    missing.push('Update SKILL.md or TECHNICAL.md to document these changes');
+
+    return { missing, ok: false, skipped: false };
+  } catch {
+    return { missing: [], ok: true, skipped: true }; // Graceful fallback
+  }
+}
+
+/**
+ * Parse the interface coverage table from a markdown file.
+ * Returns array of { name, cli, module, mcp, openclaw, skill, ccHook } or null.
+ */
+function parseInterfaceCoverageTable(filePath) {
+  if (!existsSync(filePath)) return null;
+  const content = readFileSync(filePath, 'utf8');
+  const lines = content.split('\n');
+
+  const headerIdx = lines.findIndex(l => /^\|\s*#\s*\|\s*Tool\s*\|/i.test(l));
+  if (headerIdx === -1) return null;
+
+  const rows = [];
+  for (let i = headerIdx + 2; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith('|')) break;
+    const cells = line.split('|').map(c => c.trim()).filter(c => c !== '');
+    if (cells.length < 8) continue;
+    // Skip category header rows (# cell is empty, non-numeric, or bold)
+    const num = cells[0].trim();
+    if (!num || /^\*\*/.test(num) || isNaN(parseInt(num))) continue;
+    rows.push({
+      name: cells[1].trim(),
+      cli: /^Y$/i.test(cells[2]),
+      module: /^Y$/i.test(cells[3]),
+      mcp: /^Y$/i.test(cells[4]),
+      openclaw: /^Y$/i.test(cells[5]),
+      skill: /^Y$/i.test(cells[6]),
+      ccHook: /^Y$/i.test(cells[7]),
+    });
+  }
+  return rows.length > 0 ? rows : null;
+}
+
+/**
+ * Read display name from a tool's SKILL.md frontmatter.
+ * Tries display-name, then name field. Falls back to null.
+ */
+function getToolDisplayName(toolPath) {
+  const skillPath = join(toolPath, 'SKILL.md');
+  if (!existsSync(skillPath)) return null;
+  try {
+    const content = readFileSync(skillPath, 'utf8');
+    const displayMatch = content.match(/^\s*display-name:\s*"?([^"\n]+)"?/m);
+    if (displayMatch) return displayMatch[1].trim();
+    const nameMatch = content.match(/^name:\s*"?([^"\n]+)"?/m);
+    if (nameMatch) return nameMatch[1].trim();
+  } catch {}
+  return null;
+}
+
+/**
+ * Check that the interface coverage table in README.md and SKILL.md
+ * matches the actual interfaces detected in tools/*/.
+ * Returns { missing: string[], ok: boolean, skipped: boolean }.
+ */
+function checkInterfaceCoverage(repoPath) {
+  try {
+    // Only applies to toolbox repos
+    const toolsDir = join(repoPath, 'tools');
+    if (!existsSync(toolsDir)) return { missing: [], ok: true, skipped: true };
+
+    const entries = readdirSync(toolsDir, { withFileTypes: true });
+    const tools = entries
+      .filter(e => e.isDirectory() && existsSync(join(toolsDir, e.name, 'package.json')))
+      .map(e => ({ name: e.name, path: join(toolsDir, e.name) }));
+
+    if (tools.length === 0) return { missing: [], ok: true, skipped: true };
+
+    // Detect actual interfaces for each tool
+    const actualMap = {};
+    for (const tool of tools) {
+      const pkg = JSON.parse(readFileSync(join(tool.path, 'package.json'), 'utf8'));
+      actualMap[tool.name] = {
+        displayName: getToolDisplayName(tool.path) || tool.name,
+        cli: !!(pkg.bin),
+        module: !!(pkg.main || pkg.exports),
+        mcp: ['mcp-server.mjs', 'mcp-server.js', 'dist/mcp-server.js'].some(f => existsSync(join(tool.path, f))),
+        openclaw: existsSync(join(tool.path, 'openclaw.plugin.json')),
+        skill: existsSync(join(tool.path, 'SKILL.md')),
+        ccHook: !!(pkg.claudeCode?.hook) || existsSync(join(tool.path, 'guard.mjs')),
+      };
+    }
+
+    const missing = [];
+
+    // Check both README.md and SKILL.md tables
+    for (const [label, filePath] of [['README.md', join(repoPath, 'README.md')], ['SKILL.md', join(repoPath, 'SKILL.md')]]) {
+      const tableRows = parseInterfaceCoverageTable(filePath);
+      if (!tableRows) continue;
+
+      // Tool count
+      if (tools.length !== tableRows.length) {
+        missing.push(`${label}: tool count mismatch (${tools.length} in tools/, ${tableRows.length} in table)`);
+      }
+
+      // Check each actual tool against the table
+      for (const tool of tools) {
+        const actual = actualMap[tool.name];
+        const displayName = actual.displayName;
+        const tableRow = tableRows.find(r =>
+          r.name === displayName ||
+          r.name.toLowerCase() === displayName.toLowerCase() ||
+          r.name.toLowerCase().includes(tool.name.replace(/^wip-/, '').replace(/-/g, ' '))
+        );
+
+        if (!tableRow) {
+          missing.push(`${label}: ${tool.name} (${displayName}) missing from coverage table`);
+          continue;
+        }
+
+        const ifaceMap = [
+          ['cli', 'CLI'], ['module', 'Module'], ['mcp', 'MCP'],
+          ['openclaw', 'OC Plugin'], ['skill', 'Skill'], ['ccHook', 'CC Hook']
+        ];
+
+        for (const [key, name] of ifaceMap) {
+          if (actual[key] && !tableRow[key]) {
+            missing.push(`${label}: ${displayName} has ${name} but table says no`);
+          }
+          if (tableRow[key] && !actual[key]) {
+            missing.push(`${label}: ${displayName} marked ${name} in table but not detected`);
+          }
+        }
+      }
+    }
+
+    return { missing, ok: missing.length === 0, skipped: false };
+  } catch {
+    return { missing: [], ok: true, skipped: true }; // Graceful fallback
+  }
+}
+
+/**
  * Auto-update version/date lines in product docs before the release commit.
  * Updates roadmap.md "Current version" and "Last updated",
  * and readme-first-product.md "Last updated" and "What's Built (as of vX.Y.Z)".
@@ -818,7 +1006,7 @@ export function checkStaleBranches(repoPath, level) {
 /**
  * Run the full release pipeline.
  */
-export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck }) {
+export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck, skipTechDocsCheck, skipCoverageCheck }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, level);
@@ -962,6 +1150,50 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }
   }
 
+  // 0.85. Technical docs check
+  if (!skipTechDocsCheck) {
+    const techDocsCheck = checkTechnicalDocs(repoPath);
+    if (!techDocsCheck.skipped) {
+      if (techDocsCheck.ok) {
+        console.log('  ✓ Technical docs up to date');
+      } else {
+        const isMinorOrMajor = level === 'minor' || level === 'major';
+        const prefix = isMinorOrMajor ? '✗' : '!';
+        console.log(`  ${prefix} Technical docs need attention:`);
+        for (const m of techDocsCheck.missing) console.log(`    - ${m}`);
+        if (isMinorOrMajor) {
+          console.log('');
+          console.log('  Update SKILL.md or TECHNICAL.md before a minor/major release.');
+          console.log('  Use --skip-tech-docs-check to override.');
+          console.log('');
+          return { currentVersion, newVersion, dryRun: false, failed: true };
+        }
+      }
+    }
+  }
+
+  // 0.9. Interface coverage check
+  if (!skipCoverageCheck) {
+    const coverageCheck = checkInterfaceCoverage(repoPath);
+    if (!coverageCheck.skipped) {
+      if (coverageCheck.ok) {
+        console.log('  ✓ Interface coverage table matches');
+      } else {
+        const isMinorOrMajor = level === 'minor' || level === 'major';
+        const prefix = isMinorOrMajor ? '✗' : '!';
+        console.log(`  ${prefix} Interface coverage table has mismatches:`);
+        for (const m of coverageCheck.missing) console.log(`    - ${m}`);
+        if (isMinorOrMajor) {
+          console.log('');
+          console.log('  Update the coverage table in README.md and SKILL.md.');
+          console.log('  Use --skip-coverage-check to override.');
+          console.log('');
+          return { currentVersion, newVersion, dryRun: false, failed: true };
+        }
+      }
+    }
+  }
+
   if (dryRun) {
     // Product docs check (dry-run)
     if (!skipProductCheck) {
@@ -997,6 +1229,32 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
         for (const b of staleCheck.stale) console.log(`    - ${b}`);
       } else if (!staleCheck.skipped) {
         console.log('  [dry run] ✓ No stale remote branches');
+      }
+    }
+    // Technical docs check (dry-run)
+    if (!skipTechDocsCheck) {
+      const techDocsCheck = checkTechnicalDocs(repoPath);
+      if (!techDocsCheck.skipped) {
+        if (techDocsCheck.ok) {
+          console.log('  [dry run] ✓ Technical docs up to date');
+        } else {
+          const isMinorOrMajor = level === 'minor' || level === 'major';
+          console.log(`  [dry run] ${isMinorOrMajor ? '✗ Would BLOCK' : '! Would WARN'}: technical docs need updates`);
+          for (const m of techDocsCheck.missing) console.log(`    - ${m}`);
+        }
+      }
+    }
+    // Interface coverage check (dry-run)
+    if (!skipCoverageCheck) {
+      const coverageCheck = checkInterfaceCoverage(repoPath);
+      if (!coverageCheck.skipped) {
+        if (coverageCheck.ok) {
+          console.log('  [dry run] ✓ Interface coverage table matches');
+        } else {
+          const isMinorOrMajor = level === 'minor' || level === 'major';
+          console.log(`  [dry run] ${isMinorOrMajor ? '✗ Would BLOCK' : '! Would WARN'}: interface coverage mismatches`);
+          for (const m of coverageCheck.missing) console.log(`    - ${m}`);
+        }
       }
     }
     const hasSkill = existsSync(join(repoPath, 'SKILL.md'));
@@ -1311,6 +1569,18 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   } catch (e) {
     console.log(`  ! Branch prune skipped: ${e.message}`);
   }
+
+  // Write release marker so branch guard blocks immediate install (#73)
+  try {
+    const markerDir = join(process.env.HOME || '', '.ldm', 'state');
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    mkdirSync(markerDir, { recursive: true });
+    writeFileSync(join(markerDir, '.last-release'), JSON.stringify({
+      repo: repoName,
+      version: newVersion,
+      timestamp: new Date().toISOString(),
+    }) + '\n');
+  } catch {}
 
   console.log('');
   console.log(`  Done. ${repoName} v${newVersion} released.`);

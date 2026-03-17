@@ -135,7 +135,14 @@ function trashReleaseNotes(repoPath) {
   for (const f of files) {
     renameSync(join(repoPath, f), join(trashDir, f));
     execFileSync('git', ['add', join('_trash', f)], { cwd: repoPath, stdio: 'pipe' });
-    execFileSync('git', ['rm', '--cached', f], { cwd: repoPath, stdio: 'pipe' });
+    // Only git rm if the file was tracked (committed or staged).
+    // Untracked scaffolded files from failed releases just need the rename.
+    try {
+      execFileSync('git', ['ls-files', '--error-unmatch', f], { cwd: repoPath, stdio: 'pipe' });
+      execFileSync('git', ['rm', '--cached', f], { cwd: repoPath, stdio: 'pipe' });
+    } catch {
+      // File wasn't tracked. Rename already moved it.
+    }
   }
   return files.length;
 }

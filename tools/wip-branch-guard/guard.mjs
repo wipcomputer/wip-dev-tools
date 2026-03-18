@@ -271,7 +271,20 @@ async function main() {
     process.exit(0);
   }
 
-  // We're on main. Check if this is a write operation.
+  // We're on main. Check if this is a shared state file (always writable).
+  // These are not code. They're shared context between agents.
+  const SHARED_STATE_PATTERNS = [
+    /workspace\/SHARED-CONTEXT\.md$/,
+    /workspace\/memory\/.*\.md$/,
+    /\.ldm\/agents\/.*\/memory\/daily\/.*\.md$/,
+    /\.ldm\/memory\/shared-log\.jsonl$/,
+    /\.ldm\/memory\/daily\/.*\.md$/,
+    /\.ldm\/logs\//,
+  ];
+
+  if (filePath && SHARED_STATE_PATTERNS.some(p => p.test(filePath))) {
+    process.exit(0); // Shared state, always allow
+  }
 
   // Block Write/Edit tools entirely on main
   if (WRITE_TOOLS.has(toolName)) {

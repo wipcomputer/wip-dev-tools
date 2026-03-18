@@ -36,6 +36,26 @@ export const PROTECTED_PATTERNS = [
   /daily.*log/i,
 ];
 
+// Shared state files: protected from Write but allow larger Edit replacements.
+// These are actively edited by both agents every session.
+const SHARED_STATE_FILES = new Set([
+  'SHARED-CONTEXT.md',
+]);
+
+// Daily logs and workspace memory: allow creation and larger edits
+const SHARED_STATE_PATHS = [
+  /workspace\/memory\/\d{4}-\d{2}-\d{2}\.md$/,
+  /\.ldm\/agents\/.*\/memory\/daily\/.*\.md$/,
+  /\.ldm\/memory\/daily\/.*\.md$/,
+  /\.ldm\/memory\/shared-log\.jsonl$/,
+];
+
+function isSharedState(filePath) {
+  const name = basename(filePath);
+  if (SHARED_STATE_FILES.has(name)) return true;
+  return SHARED_STATE_PATHS.some(p => p.test(filePath));
+}
+
 function isProtected(filePath) {
   const name = basename(filePath);
   if (PROTECTED.has(name)) return name;
@@ -116,14 +136,19 @@ async function main() {
     const newLines = countLines(newString);
     const removed = oldLines - newLines;
 
-    // Block net removal of more than 2 lines
-    if (removed > 2) {
+    // Shared state files get higher limits (updated every session by both agents)
+    const isShared = isSharedState(filePath);
+    const maxRemoval = isShared ? 20 : 2;
+    const maxReplace = isShared ? 30 : 4;
+
+    // Block net removal beyond limit
+    if (removed > maxRemoval) {
       deny(`BLOCKED: You are removing ${removed} lines from ${match} (old: ${oldLines} lines, new: ${newLines} lines). Re-read the file and add content instead of replacing it.`);
       process.exit(0);
     }
 
     // Block large replacements (swapping big chunks even if line count is similar)
-    if (oldLines > 4 && oldString !== newString) {
+    if (oldLines > maxReplace && oldString !== newString) {
       deny(`BLOCKED: You are replacing ${oldLines} lines in ${match}. Edit smaller sections or append new content instead of replacing existing content.`);
       process.exit(0);
     }

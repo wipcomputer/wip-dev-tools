@@ -225,6 +225,21 @@ async function main() {
         }
       } catch {}
     }
+
+    // Warn when creating worktrees outside _worktrees/ (#212)
+    const wtMatch = cmd.match(/\bgit\s+worktree\s+add\s+["']?([^\s"']+)/);
+    if (wtMatch) {
+      const wtPath = wtMatch[1];
+      if (!wtPath.includes('_worktrees') && !wtPath.includes('.claude/worktrees')) {
+        deny(`WARNING: Creating worktree outside _worktrees/. Use: ldm worktree add <branch>
+
+The convention is _worktrees/<repo>--<branch>/ so worktrees don't mix with real repos.
+Manual equivalent: git worktree add ../_worktrees/<repo>--<branch> -b <branch>
+
+This is a warning, not a block. If you need to create it here, retry.`);
+        process.exit(0);
+      }
+    }
   }
 
   // Determine which repo to check.

@@ -524,16 +524,42 @@ gh api "repos/<org>/<repo>/branches/main/protection" -X PUT \
 
 The main working tree stays on `main` and is read-only in practice. All development happens in git worktrees. This keeps the primary clone clean, prevents accidental commits to main, and enables parallel work within a single agent.
 
+### Worktree Location Convention
+
+**All worktrees go in `_worktrees/` as a sibling to the repos directory.** Never create worktrees as siblings to repos directly. They look like real repos, confuse iCloud sync, and are hard to find/clean.
+
+**Convention:** `_worktrees/<repo-name>--<branch-suffix>/`
+
+```
+repos/
+  ldm-os/
+    components/
+      memory-crystal-private/     <- real repo
+    devops/
+      wip-ai-devops-toolbox-private/  <- real repo
+  _worktrees/
+    memory-crystal-private--cc-mini--fix-search/   <- worktree
+    wip-ai-devops-toolbox-private--cc-mini--guard/  <- worktree
+```
+
 ### Starting a Worktree
 
-From Claude Code:
+**Preferred:** Use the `ldm worktree` command:
+```bash
+ldm worktree add cc-mini/fix-bug    # auto-detects repo, creates in _worktrees/
+```
+
+**From Claude Code:**
 ```bash
 claude --worktree <name>
 ```
 
-Or mid-session, say "work in a worktree" and the session will move into one.
+**Manual:**
+```bash
+git worktree add ../_worktrees/<repo>--<branch> -b <branch>
+```
 
-Worktrees live at `.claude/worktrees/` inside the repo. Each worktree gets its own directory with a full checkout on a separate branch.
+The branch guard warns if you create worktrees outside `_worktrees/` or `.claude/worktrees/`.
 
 ### Branch Naming
 

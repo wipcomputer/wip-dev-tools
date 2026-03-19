@@ -1579,6 +1579,39 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     console.log(`  ! Branch prune skipped: ${e.message}`);
   }
 
+  // 12. Prune stale worktrees (#212)
+  try {
+    execSync('git worktree prune', { cwd: repoPath, stdio: 'pipe' });
+    // Also check _worktrees/ for dirs whose branches are now merged
+    const worktreesDir = join(dirname(repoPath), '_worktrees');
+    if (existsSync(worktreesDir)) {
+      const repoBase = basename(repoPath);
+      const wtDirs = readdirSync(worktreesDir, { withFileTypes: true })
+        .filter(d => d.isDirectory() && d.name.startsWith(repoBase + '--'));
+      let wtPruned = 0;
+      for (const d of wtDirs) {
+        const wtPath = join(worktreesDir, d.name);
+        try {
+          // Check if branch is merged into main
+          const branch = execSync('git branch --show-current', {
+            cwd: wtPath, encoding: 'utf8', timeout: 3000
+          }).trim();
+          if (branch) {
+            execSync(`git merge-base --is-ancestor "${branch}" main`, {
+              cwd: repoPath, stdio: 'pipe', timeout: 5000
+            });
+            // Branch is merged. Remove worktree.
+            execSync(`git worktree remove "${wtPath}"`, { cwd: repoPath, stdio: 'pipe' });
+            wtPruned++;
+          }
+        } catch {} // Branch not merged or other issue, leave it
+      }
+      if (wtPruned > 0) {
+        console.log(`  ✓ Pruned ${wtPruned} merged worktree(s) from _worktrees/`);
+      }
+    }
+  } catch {}
+
   // Write release marker so branch guard blocks immediate install (#73)
   try {
     const markerDir = join(process.env.HOME || '', '.ldm', 'state');

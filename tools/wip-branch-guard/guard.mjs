@@ -91,6 +91,28 @@ const ALLOWED_BASH_PATTERNS = [
   /\bclaude\s+mcp\b/,          // MCP registration, not repo files
 ];
 
+// Workflow steps for error messages (#213)
+const WORKFLOW_ON_MAIN = `
+The process: worktree -> branch -> commit -> push -> PR -> merge -> wip-release -> deploy-public.
+
+Step 1: git worktree add ../my-worktree -b cc-mini/your-feature
+Step 2: Edit files in the worktree
+Step 3: git add + git commit (with co-authors)
+Step 4: git push -u origin cc-mini/your-feature
+Step 5: gh pr create, then gh pr merge --merge --delete-branch
+Step 6: Back in main repo: git pull
+Step 7: wip-release patch (with RELEASE-NOTES on the branch, not after)
+Step 8: deploy-public.sh to sync public repo
+
+Release notes go ON the feature branch, committed with the code. Not as a separate PR.`.trim();
+
+const WORKFLOW_NOT_WORKTREE = `
+You're on a branch but not in a worktree. Use a worktree so the main working tree stays clean.
+
+Step 1: git checkout main (go back to main first)
+Step 2: git worktree add ../my-worktree -b your-branch-name
+Step 3: Edit files in the worktree directory`.trim();
+
 function deny(reason) {
   const output = {
     hookSpecificOutput: {
@@ -265,7 +287,7 @@ async function main() {
         BLOCKED_BASH_PATTERNS.some(p => p.test(command)) &&
         !ALLOWED_BASH_PATTERNS.some(p => p.test(command)));
     if (isWriteOp) {
-      deny(`BLOCKED: On branch "${branch}" but not in a worktree. Use: git worktree add ../my-worktree -b ${branch}`);
+      deny(`BLOCKED: On branch "${branch}" but not in a worktree.\n\n${WORKFLOW_NOT_WORKTREE}`);
       process.exit(0);
     }
     process.exit(0);
@@ -274,6 +296,7 @@ async function main() {
   // We're on main. Check if this is a shared state file (always writable).
   // These are not code. They're shared context between agents.
   const SHARED_STATE_PATTERNS = [
+    /CLAUDE\.md$/,
     /workspace\/SHARED-CONTEXT\.md$/,
     /workspace\/memory\/.*\.md$/,
     /\.ldm\/agents\/.*\/memory\/daily\/.*\.md$/,
@@ -288,7 +311,7 @@ async function main() {
 
   // Block Write/Edit tools entirely on main
   if (WRITE_TOOLS.has(toolName)) {
-    deny(`BLOCKED: Cannot ${toolName} while on main branch. Use a worktree: git worktree add ../my-worktree -b cc-mini/your-feature`);
+    deny(`BLOCKED: Cannot ${toolName} while on main branch.\n\n${WORKFLOW_ON_MAIN}`);
     process.exit(0);
   }
 
@@ -310,7 +333,7 @@ async function main() {
           if (ap.test(command)) { isAllowed = true; break; }
         }
         if (!isAllowed) {
-          deny(`BLOCKED: Cannot run "${command.substring(0, 60)}..." on main branch. Use a worktree: git worktree add ../my-worktree -b cc-mini/your-feature`);
+          deny(`BLOCKED: Cannot run "${command.substring(0, 60)}..." on main branch.\n\n${WORKFLOW_ON_MAIN}`);
           process.exit(0);
         }
       }
@@ -325,7 +348,7 @@ async function main() {
           if (ap.test(command)) { isAllowed = true; break; }
         }
         if (!isAllowed) {
-          deny(`BLOCKED: Cannot run file-modifying command on main branch. Use a worktree: git worktree add ../my-worktree -b cc-mini/your-feature`);
+          deny(`BLOCKED: Cannot run file-modifying command on main branch.\n\n${WORKFLOW_ON_MAIN}`);
           process.exit(0);
         }
       }

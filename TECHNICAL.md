@@ -189,7 +189,7 @@ bash scripts/deploy-public.sh /path/to/private-repo wipcomputer/public-repo
 
 ### wip-repos
 
-Repo manifest reconciler. Makes `repos-manifest.json` the single source of truth for repo organization. Like prettier for folder structure. Move folders around all day; on sync, everything snaps back to where the manifest says.
+Repo manifest reconciler. Makes `repos-manifest.json` the single source of truth for repo organization. Like prettier for folder structure. Move folders around all day; on sync, everything snaps back to where the manifest says. Also generates cross-repo CLAUDE.md ecosystem sections.
 
 ```bash
 # Check for drift
@@ -206,9 +206,27 @@ wip-repos move ldm-os/utilities/my-tool --to ldm-os/devops/my-tool
 
 # Generate directory tree
 wip-repos tree
+
+# Generate cross-repo CLAUDE.md ecosystem sections
+wip-repos claude                         # all repos
+wip-repos claude my-repo                 # one repo
+wip-repos claude --init                  # create CLAUDE.md for repos missing one
+wip-repos claude --dry-run               # preview
 ```
 
-**Source:** Pure JavaScript, no build step. [`tools/wip-repos/core.mjs`](tools/wip-repos/core.mjs) (logic), [`tools/wip-repos/cli.mjs`](tools/wip-repos/cli.mjs) (CLI). Zero dependencies.
+**How `wip-repos claude` works:**
+
+Agents can't read sibling repos at runtime. This command solves that by pre-generating cross-repo context into each repo's CLAUDE.md.
+
+1. Reads all repos from `repos-manifest.json`
+2. Extracts metadata from each: `package.json` (name, version, bin, exports), `SKILL.md` (interfaces), directory structure
+3. For each repo, determines relevant siblings (same category + core repos)
+4. Generates an `## Ecosystem` section between `<!-- wip-repos:start -->` / `<!-- wip-repos:end -->` delimiter comments
+5. Hand-written CLAUDE.md content outside the delimiters is never touched
+
+Templates at `templates/global-claude-md.md` (for `~/.claude/CLAUDE.md`) and `templates/repo-claude-md.template` (for per-repo starter).
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-repos/core.mjs`](tools/wip-repos/core.mjs) (manifest logic), [`tools/wip-repos/claude.mjs`](tools/wip-repos/claude.mjs) (ecosystem generator), [`tools/wip-repos/cli.mjs`](tools/wip-repos/cli.mjs) (CLI). Zero dependencies.
 
 [README](tools/wip-repos/README.md)
 
@@ -260,13 +278,18 @@ wip-license-guard readme-license         # audit/fix license blocks across all r
 
 Blocks all writes on main branch. The enforcement layer for forced worktrees. PreToolUse hook that catches Write, Edit, and destructive Bash commands. Resolves the repo from the file path, not the CWD, so it works when Claude Code opens in a different directory.
 
+**Features:**
+- **Workflow teaching:** Error messages include the full 8-step dev process (worktree, branch, commit, push, PR, merge, wip-release, deploy-public). Agents learn the workflow from the error, not just that they're blocked.
+- **Worktree path warning:** Warns when `git worktree add` creates outside `_worktrees/`. Suggests `ldm worktree add`.
+- **Dogfood cooldown:** After `wip-release`, blocks `npm install -g` for 5 minutes. Forces dogfooding via the install prompt.
+- **Dangerous flag blocking:** `--no-verify` and `git push --force` blocked on any branch.
+- **Shared state allowlist:** CLAUDE.md, SHARED-CONTEXT.md, daily logs, `~/.ldm/logs/` always writable on main.
+
 ```bash
 wip-branch-guard --check       # report current branch status
 ```
 
 **Source:** Pure JavaScript, no build step. [`tools/wip-branch-guard/guard.mjs`](tools/wip-branch-guard/guard.mjs). Zero dependencies.
-
-[INSTALL.md](tools/wip-branch-guard/INSTALL.md)
 
 ## Source Code
 

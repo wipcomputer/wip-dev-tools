@@ -12,6 +12,7 @@
  */
 
 import { check, planSync, executeSync, addRepo, moveRepo, generateReadmeTree, loadManifest } from './core.mjs';
+import { runClaude } from './claude.mjs';
 import { resolve, dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -170,6 +171,11 @@ try {
     case 'tree': {
       const tree = generateReadmeTree(manifestPath);
       console.log(tree);
+      break;
+    }
+
+    case 'claude': {
+      runClaude(manifestPath, args.slice(1));
       break;
     }
 

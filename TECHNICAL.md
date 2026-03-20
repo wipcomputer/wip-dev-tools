@@ -88,26 +88,43 @@ open -W ~/Applications/LDMDevTools.app --args visibility-audit
 
 ```bash
 # Daily backup at midnight, branch protection audit at 1 AM, visibility audit at 2 AM
-0 0 * * * open -W ~/Applications/LDMDevTools.app --args backup >> /tmp/ldm-dev-tools/cron.log 2>&1
-0 1 * * * open -W ~/Applications/LDMDevTools.app --args branch-protect >> /tmp/ldm-dev-tools/cron.log 2>&1
-0 2 * * * open -W ~/Applications/LDMDevTools.app --args visibility-audit >> /tmp/ldm-dev-tools/cron.log 2>&1
+0 0 * * * open -W ~/Applications/LDMDevTools.app --args backup >> ~/.ldm/logs/cron.log 2>&1
+0 1 * * * open -W ~/Applications/LDMDevTools.app --args branch-protect >> ~/.ldm/logs/cron.log 2>&1
+0 2 * * * open -W ~/Applications/LDMDevTools.app --args visibility-audit >> ~/.ldm/logs/cron.log 2>&1
 ```
 
-Logs: `/tmp/ldm-dev-tools/`
+Logs: `~/.ldm/logs/`
 
 ### wip-release
 
-One-command release pipeline. Version bump, changelog, SKILL.md sync, npm publish, GitHub release. All in one shot. Release notes live on the branch so you review them in the PR before they go live.
+One-command release pipeline. Version bump, changelog, SKILL.md sync, npm publish, GitHub release, website skill publish. All in one shot.
 
 ```bash
-wip-release patch --notes="description of what was built and why"
-wip-release minor                               # auto-detects RELEASE-NOTES-v{version}.md
-wip-release major --dry-run
+wip-release patch                               # auto-detects RELEASE-NOTES-v{version}.md
+wip-release minor --dry-run
+wip-release major
 ```
 
-**Release notes convention:** Write `RELEASE-NOTES-v{version}.md` (e.g. `RELEASE-NOTES-v1-6-0.md`) on your feature branch. It shows up in the PR diff for review. On release, wip-release auto-detects the file and uses it as the GitHub release body. One file, renamed each release. Warns when notes are missing, too short, or look like changelog entries instead of narrative.
+**Release notes are mandatory.** Write `RELEASE-NOTES-v{version}.md` (dashes, not dots) on your feature branch. Commit it with the code. The PR diff shows both code and notes for review. On release, wip-release auto-detects the file.
 
-**Source:** Pure JavaScript, no build step. [`tools/wip-release/cli.js`](tools/wip-release/cli.js) (entry point), [`tools/wip-release/core.mjs`](tools/wip-release/core.mjs) (main logic). Zero dependencies.
+**Quality gates (all run before release):**
+- **Release notes:** Must come from a file (--notes flag removed). Three sources: RELEASE-NOTES file, ai/dev-updates/, or --notes-file. Blocks changelog-format entries ("fix: ...", "add: ..."). Must reference at least one GitHub issue (#XX).
+- **Product docs:** Warns if roadmap, readme-first, or dev-updates are stale. Auto-updates version/date in `ai/product/plans-prds/roadmap.md` and `ai/product/readme-first-product.md` before commit.
+- **Technical docs:** When source files (.mjs, .js, .ts) changed since last tag, checks that SKILL.md or TECHNICAL.md was also updated. Warns on patch, blocks on minor/major. Skip: `--skip-tech-docs-check`.
+- **Interface coverage (toolbox repos):** Scans `tools/*/` for actual interfaces (CLI, Module, MCP, OC Plugin, Skill, CC Hook). Compares against README.md and SKILL.md coverage table. Reports: missing from table, detected but not marked, marked but not detected. Warns on patch, blocks on minor/major. Skip: `--skip-coverage-check`.
+- **Stale branches:** Warns (patch) or blocks (minor/major) if merged branches exist on remote.
+- **Worktree guard:** Blocks releases from linked worktrees. Must run from main working tree. Skip: `--skip-worktree-check`.
+- **Dogfood cooldown:** Writes `.last-release` marker. Branch guard blocks `npm install -g` for 5 minutes.
+
+**Post-release automation:**
+- Post-merge branch rename (--merged-YYYY-MM-DD)
+- Stale worktree prune from `_worktrees/`
+- Skill publish to wip.computer/install/{name}.txt
+- Product docs version sync
+
+**All 7 CLIs support `--version` and `-v`.**
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-release/cli.js`](tools/wip-release/cli.js) (entry point), [`tools/wip-release/core.mjs`](tools/wip-release/core.mjs) (main logic), [`tools/wip-release/mcp-server.mjs`](tools/wip-release/mcp-server.mjs) (MCP server). Zero dependencies.
 
 [README](tools/wip-release/README.md) ... [SKILL.md](tools/wip-release/SKILL.md) ... [Reference](tools/wip-release/REFERENCE.md)
 
@@ -179,13 +196,23 @@ wip-file-guard --list
 
 ### deploy-public.sh
 
-Private-to-public repo sync. Copies everything except `ai/` from your working repo to the public mirror. Creates a PR, merges it. One script for all repos.
+Private-to-public repo sync. The full pipeline:
 
-**Source:** Plain shell. [`scripts/deploy-public.sh`](scripts/deploy-public.sh)
+1. Rsyncs all files except `ai/` from private to public repo clone
+2. Rewrites repository URL from private to public in package.json
+3. Creates a branch, commits with co-authors, pushes, creates PR
+4. Merges PR (--merge, never squash)
+5. Creates matching GitHub release on public repo (pulls notes from private repo's release)
+6. Publishes to npm from public repo clone
+7. Publishes to GitHub Packages from public repo clone (uses `gh auth token`)
+8. Cleans stale branches on public repo
 
 ```bash
 bash scripts/deploy-public.sh /path/to/private-repo wipcomputer/public-repo
+bash scripts/deploy-public.sh /path/to/private-repo wipcomputer/public-repo --dry-run
 ```
+
+**Source:** Plain shell. [`scripts/deploy-public.sh`](scripts/deploy-public.sh) and [`tools/deploy-public/deploy-public.sh`](tools/deploy-public/deploy-public.sh)
 
 ### wip-repos
 
@@ -270,20 +297,24 @@ wip-license-guard init --from-standard   # apply WIP Computer defaults
 wip-license-guard readme-license         # audit/fix license blocks across all repos
 ```
 
-**Source:** Pure JavaScript, no build step. [`tools/wip-license-guard/cli.mjs`](tools/wip-license-guard/cli.mjs) (CLI), [`tools/wip-license-guard/core.mjs`](tools/wip-license-guard/core.mjs) (logic). Zero dependencies.
+**Claude Code Hook:** Also wired as a PreToolUse hook (`guard.mjs`). On `ldm install`, registers in `~/.claude/settings.json`. Blocks `git commit` and `git push` when license compliance fails. Only checks repos with `.license-guard.json`. Repos without config silently pass.
+
+**Source:** Pure JavaScript, no build step. [`tools/wip-license-guard/cli.mjs`](tools/wip-license-guard/cli.mjs) (CLI), [`tools/wip-license-guard/core.mjs`](tools/wip-license-guard/core.mjs) (logic), [`tools/wip-license-guard/guard.mjs`](tools/wip-license-guard/guard.mjs) (CC hook). Zero dependencies.
 
 [README](tools/wip-license-guard/README.md) ... [SKILL.md](tools/wip-license-guard/SKILL.md)
 
 ### wip-branch-guard
 
-Blocks all writes on main branch. The enforcement layer for forced worktrees. PreToolUse hook that catches Write, Edit, and destructive Bash commands. Resolves the repo from the file path, not the CWD, so it works when Claude Code opens in a different directory.
+Blocks all writes on main branch. The enforcement layer for required worktrees. PreToolUse hook that catches Write, Edit, and destructive Bash commands. Resolves the repo from the file path, not the CWD. If a file is outside any git repo (e.g. `~/.claude/plans/`), the guard allows edits immediately. Only protects files within git repos.
 
 **Features:**
 - **Workflow teaching:** Error messages include the full 8-step dev process (worktree, branch, commit, push, PR, merge, wip-release, deploy-public). Agents learn the workflow from the error, not just that they're blocked.
 - **Worktree path warning:** Warns when `git worktree add` creates outside `_worktrees/`. Suggests `ldm worktree add`.
 - **Dogfood cooldown:** After `wip-release`, blocks `npm install -g` for 5 minutes. Forces dogfooding via the install prompt.
+- **Worktree requirement on branches:** On any non-main branch, edits blocked if not inside a worktree. Separate error message directs agents to create a worktree properly.
 - **Dangerous flag blocking:** `--no-verify` and `git push --force` blocked on any branch.
 - **Shared state allowlist:** CLAUDE.md, SHARED-CONTEXT.md, daily logs, `~/.ldm/logs/` always writable on main.
+- **Non-repo passthrough:** Files outside any git repo allowed immediately.
 
 ```bash
 wip-branch-guard --check       # report current branch status
@@ -301,14 +332,14 @@ All implementation source is committed in this repo. No closed binaries, no myst
 | LDM Dev Tools jobs | Shell | `tools/ldm-jobs/backup.sh`, `branch-protect.sh`, `visibility-audit.sh` | None. Runnable standalone or via `.app` wrapper. |
 | wip-release | JavaScript (ESM) | `tools/wip-release/cli.js`, `core.mjs`, `mcp-server.mjs` | None. What you see is what runs. |
 | wip-license-hook | TypeScript | `tools/wip-license-hook/src/**/*.ts`, `mcp-server.mjs` | `cd tools/wip-license-hook && npm install && npm run build` |
-| wip-license-guard | JavaScript (ESM) | `tools/wip-license-guard/cli.mjs`, `core.mjs` | None. What you see is what runs. |
+| wip-license-guard | JavaScript (ESM) | `tools/wip-license-guard/cli.mjs`, `core.mjs`, `guard.mjs` | None. What you see is what runs. |
 | wip-repo-permissions-hook | JavaScript (ESM) | `tools/wip-repo-permissions-hook/core.mjs`, `cli.js`, `guard.mjs`, `mcp-server.mjs` | None. What you see is what runs. |
 | post-merge-rename.sh | Shell | `scripts/post-merge-rename.sh` | None. |
 | wip-file-guard | JavaScript (ESM) | `tools/wip-file-guard/guard.mjs` | None. What you see is what runs. |
 | wip-branch-guard | JavaScript (ESM) | `tools/wip-branch-guard/guard.mjs` | None. What you see is what runs. |
 | wip-universal-installer | JavaScript (ESM) | `tools/wip-universal-installer/detect.mjs`, `install.js` | None. What you see is what runs. |
 | deploy-public.sh | Shell | `scripts/deploy-public.sh` | None. |
-| wip-repos | JavaScript (ESM) | `tools/wip-repos/core.mjs`, `cli.mjs`, `mcp-server.mjs` | None. What you see is what runs. |
+| wip-repos | JavaScript (ESM) | `tools/wip-repos/core.mjs`, `cli.mjs`, `mcp-server.mjs`, `claude.mjs` | None. What you see is what runs. |
 | wip-repo-init | JavaScript (ESM) | `tools/wip-repo-init/init.mjs` | None. What you see is what runs. |
 | wip-readme-format | JavaScript (ESM) | `tools/wip-readme-format/format.mjs` | None. What you see is what runs. |
 

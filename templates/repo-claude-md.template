@@ -1,0 +1,24 @@
+# CLAUDE.md — {{repo-name}}
+
+## Boot Sequence
+1. Read this file completely before acting
+2. Read `ai/read-me-first.md` if it exists
+3. Never commit directly to main. Use worktrees.
+
+## Project Overview
+- **Description:** {{description}}
+- **Language:** {{language}}
+- **Test:** `{{scripts.test}}`
+- **Build:** `{{scripts.build}}`
+- **Lint:** `{{scripts.lint}}`
+
+## Architecture
+{{detected-dirs}}
+
+## Repo-Specific Guardrails
+{{guardrails}}
+
+## Ecosystem
+<!-- wip-repos:start -->
+_Run `wip-repos claude` to populate this section with cross-repo context._
+<!-- wip-repos:end -->

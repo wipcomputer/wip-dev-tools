@@ -5,7 +5,7 @@ license: MIT
 interface: [cli, module, mcp, skill, hook, plugin]
 metadata:
   display-name: "WIP AI DevOps Toolbox"
-  version: "1.9.47"
+  version: "1.9.48"
   homepage: "https://github.com/wipcomputer/wip-ai-devops-toolbox"
   author: "Parker Todd Brooks"
   category: dev-tools
@@ -89,7 +89,7 @@ If the user already has the toolbox installed (check `ldm status` or look for `w
 
 **Repo Management**
 4. **Repo Visibility Guard** ... blocks repos from going public without a -private counterpart. Prevents accidental exposure.
-5. **Repo Manifest Reconciler** ... one source of truth for folder structure. Drift detection and auto-sync.
+5. **Repo Manifest Reconciler** ... one source of truth for folder structure. Drift detection, auto-sync, and cross-repo CLAUDE.md generation.
 6. **Repo Init** ... scaffolds the standard ai/ directory. Plans, notes, dev updates, todos. One command.
 7. **README Formatter** ... generates READMEs following the standard format. Staging, review, deploy.
 8. **Forced Git Worktrees** ... agents never edit on main. Isolated copies, PRs to merge back.
@@ -583,6 +583,10 @@ wip-repos sync                           # move repos to match manifest
 wip-repos add <org/repo> <category>      # add a repo to the manifest
 wip-repos move <org/repo> <new-category> # move a repo in the manifest
 wip-repos tree                           # show the manifest as a tree
+wip-repos claude                         # regenerate CLAUDE.md ecosystem sections for all repos
+wip-repos claude <repo>                  # regenerate one repo's CLAUDE.md
+wip-repos claude --init                  # create CLAUDE.md for repos missing one
+wip-repos claude --dry-run               # preview changes
 ```
 
 **What it does:**
@@ -590,6 +594,7 @@ wip-repos tree                           # show the manifest as a tree
 - Compares against the actual filesystem
 - `check` reports drift (repos in wrong locations, missing repos, unknown repos)
 - `sync` moves repos to match the manifest
+- `claude` generates cross-repo ecosystem context in CLAUDE.md files. Each repo gets a list of related repos with their interfaces, CLI commands, and descriptions. Agents can't read sibling repos at runtime, so this pre-generates the context they need.
 
 **MCP tools:** `repos_check`, `repos_sync_plan`, `repos_add`, `repos_move`, `repos_tree`
 

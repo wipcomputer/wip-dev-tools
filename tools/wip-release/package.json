@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-release",
-  "version": "1.9.47",
+  "version": "1.9.48",
   "type": "module",
   "description": "One-command release pipeline. Bumps version, updates changelog + SKILL.md, publishes to npm + GitHub.",
   "main": "core.mjs",

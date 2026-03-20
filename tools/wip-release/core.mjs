@@ -388,6 +388,20 @@ function checkProductDocs(repoPath) {
     }
   }
 
+  // 4. Product update doc: modified since last tag
+  const productUpdateDir = join(aiDir, 'dev-updates', 'product-update');
+  if (existsSync(productUpdateDir)) {
+    const puFiles = readdirSync(productUpdateDir).filter(f => f.endsWith('.md'));
+    if (puFiles.length > 0) {
+      const anyModified = puFiles.some(f =>
+        fileModifiedSinceLastTag(repoPath, `ai/dev-updates/product-update/${f}`)
+      );
+      if (!anyModified) {
+        missing.push('ai/dev-updates/product-update/ (product update doc not updated since last release)');
+      }
+    }
+  }
+
   return { missing, ok: missing.length === 0, skipped: false };
 }
 

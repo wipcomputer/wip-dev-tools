@@ -60,19 +60,19 @@ Best practices for AI-assisted development teams. Covers release process, repo s
 
 macOS automation wrapper. A native `.app` bundle that runs scheduled jobs (backup, branch protection audit, etc.) with Full Disk Access. One app to grant permissions to, one place to add new automation.
 
-**Source:** Job scripts are plain shell, committed at [`tools/ldm-jobs/`](tools/ldm-jobs/):
+**Source:** Job scripts are plain shell. The app provides a Full Disk Access wrapper.
 
-| Script | What it does |
-|--------|-------------|
-| [`backup.sh`](tools/ldm-jobs/backup.sh) | Daily backup |
-| [`branch-protect.sh`](tools/ldm-jobs/branch-protect.sh) | Audit and enforce branch protection across all org repos |
-| [`visibility-audit.sh`](tools/ldm-jobs/visibility-audit.sh) | Audit public repos for missing -private counterparts |
+| Script | What it does | Source |
+|--------|-------------|--------|
+| `backup.sh` | Calls `~/.ldm/bin/ldm-backup.sh` (unified backup) | wip-ldm-os-private/scripts/ |
+| [`branch-protect.sh`](tools/ldm-jobs/branch-protect.sh) | Audit and enforce branch protection across all org repos | tools/ldm-jobs/ |
+| [`visibility-audit.sh`](tools/ldm-jobs/visibility-audit.sh) | Audit public repos for missing -private counterparts | tools/ldm-jobs/ |
 
-Scripts can be run standalone without the `.app`. The app provides a Full Disk Access wrapper for scripts that need it.
+The backup script is deployed by `ldm install` to `~/.ldm/bin/`. It backs up ~/.ldm/, ~/.openclaw/, ~/.claude/, and the workspace. See `how-backup-works.md` in the workspace docs.
 
 ```bash
 # Run standalone
-bash tools/ldm-jobs/backup.sh
+~/.ldm/bin/ldm-backup.sh                # or --dry-run to preview
 bash tools/ldm-jobs/branch-protect.sh
 bash tools/ldm-jobs/visibility-audit.sh
 

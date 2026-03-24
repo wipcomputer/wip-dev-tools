@@ -313,6 +313,12 @@ This is a warning, not a block. If you need to create it here, retry.`);
   const SHARED_STATE_PATTERNS = [
     /CLAUDE\.md$/,
     /workspace\/SHARED-CONTEXT\.md$/,
+    /workspace\/TOOLS\.md$/,
+    /workspace\/MEMORY\.md$/,
+    /workspace\/IDENTITY\.md$/,
+    /workspace\/SOUL\.md$/,
+    /workspace\/WHERE-TO-WRITE\.md$/,
+    /workspace\/HEARTBEAT\.md$/,
     /workspace\/memory\/.*\.md$/,
     /\.ldm\/agents\/.*\/memory\/daily\/.*\.md$/,
     /\.ldm\/memory\/shared-log\.jsonl$/,

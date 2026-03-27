@@ -1,6 +1,6 @@
 # Dev Guide ... Best Practices for AI-Assisted Development
 
-**WIP team members: also read [the private Dev Guide](ai/DEV-GUIDE-FOR-WIP-ONLY-PRIVATE.md).** It covers WIP-specific conventions (branch prefixes, agent IDs, deploy paths, incidents) that supplement everything below. Neither guide is complete without the other.
+**WIP team members: also read the private Dev Guide at `~/wipcomputerinc/settings/templates/dev-guide-private.md`.** It covers WIP-specific conventions (branch prefixes, agent IDs, deploy paths, incidents) that supplement everything below. Neither guide is complete without the other.
 
 ## Repo Structure Convention
 
@@ -647,6 +647,47 @@ Product docs drift fast. If roadmap updates only happen "when someone remembers,
 ### Release notes:
 
 Release notes are the public face of the project. They must be comprehensive. One-liners like "Release v0.6.0" are unacceptable. Every feature, every change, documented section by section. This applies to both private and public GitHub releases.
+
+## Feature Planning: 5 Mandatory Questions
+
+Before implementing any feature that changes how the system works (installer, config, deploy, architecture), answer these 5 questions in your plan or PR description. Not optional. Not "consider this." Answer all five or the plan is incomplete.
+
+1. **What source files change?** (in the repo)
+2. **What does `ldm install` deploy?** (templates, rules, docs, boot config, CLAUDE.md, skills)
+3. **What needs to update for fresh install vs existing install?**
+4. **What docs need updating?** (repo docs, settings/docs, website)
+5. **What are ALL the files the installer touches on deploy?**
+
+If you can't answer #5, you don't understand the change well enough to ship it.
+
+## Doc Update Dependencies
+
+When you change a file on the left, you MUST also update the files on the right. This is not optional.
+
+| If you change | You must also update |
+|--------------|---------------------|
+| `SKILL.md` | `references/`, `settings/docs/how-install-works.md`, wip.computer/install/ (auto via wip-release) |
+| `lib/deploy.mjs` | `settings/docs/how-install-works.md`, `docs/universal-installer/SPEC.md`, `docs/universal-installer/TECHNICAL.md` |
+| `catalog.json` | `settings/docs/what-is-ldm-os.md`, `README.md`, `docs/skills/README.md` |
+| `bin/ldm.js` (init) | `settings/docs/how-install-works.md`, `settings/docs/system-directories.md` |
+| `shared/rules/*` | `settings/docs/how-rules-and-commands-work.md` |
+| `shared/boot/*` | `settings/docs/how-agents-work.md` |
+| `lib/detect.mjs` | `docs/universal-installer/SPEC.md`, `settings/docs/how-install-works.md` |
+| Backup scripts | `settings/docs/how-backup-works.md` |
+| Agent identity files | `settings/docs/how-agents-work.md` |
+| Any repo `README.md` | Public repo README (via deploy-public.sh) |
+
+Machine-readable version: `~/wipcomputerinc/settings/docs/change-dependencies.json`
+
+### Three doc layers
+
+Every change flows through three layers:
+
+1. **Repo docs** (generic, source of truth): README.md, TECHNICAL.md, SPEC.md per repo. Written for anyone.
+2. **Settings docs** (personalized, deployed by ldm install): `~/wipcomputerinc/settings/docs/`. Written for YOUR system. Personalized from config.json.
+3. **Website docs** (public): wip.computer. SKILL.md auto-deployed by wip-release. Other docs via Mintlify or deploy script.
+
+If repo docs change but settings docs don't update, the user's local docs drift. If settings docs change but the website doesn't, the public docs drift. All three layers must stay in sync.
 
 ## Repo Directory Structure
 

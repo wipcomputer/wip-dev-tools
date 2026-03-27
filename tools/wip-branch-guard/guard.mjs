@@ -135,6 +135,17 @@ function findRepoRoot(filePath) {
       dir = dirname(dir); // File might not exist yet
     }
 
+    // Walk up until we find an existing directory (handles mkdir for new paths)
+    while (dir && dir !== '/') {
+      try {
+        const s = statSync(dir);
+        if (s.isDirectory()) break;
+        dir = dirname(dir);
+      } catch {
+        dir = dirname(dir);
+      }
+    }
+
     // Use git rev-parse from the directory
     const result = execSync('git rev-parse --show-toplevel 2>/dev/null', {
       cwd: dir,
@@ -144,6 +155,18 @@ function findRepoRoot(filePath) {
     return result;
   } catch {}
   return null;
+}
+
+function extractPathsFromCommand(command) {
+  // Extract absolute paths from a bash command
+  // Matches paths like /Users/foo/bar, /tmp/something, etc.
+  const paths = [];
+  const regex = /(\/(?:Users|home|tmp|var|opt|etc|private)[^\s"'|;&>)]+)/g;
+  let match;
+  while ((match = regex.exec(command)) !== null) {
+    paths.push(match[1]);
+  }
+  return paths;
 }
 
 function getCurrentBranch(cwd) {
@@ -230,7 +253,7 @@ async function main() {
     const wtMatch = cmd.match(/\bgit\s+worktree\s+add\s+["']?([^\s"']+)/);
     if (wtMatch) {
       const wtPath = wtMatch[1];
-      if (!wtPath.includes('_worktrees') && !wtPath.includes('.claude/worktrees')) {
+      if (!wtPath.includes('_worktrees') && !wtPath.includes('.claude/worktrees') && !wtPath.includes('.ldm/worktrees')) {
         deny(`WARNING: Creating worktree outside _worktrees/. Use: ldm worktree add <branch>
 
 The convention is _worktrees/<repo>--<branch>/ so worktrees don't mix with real repos.
@@ -273,6 +296,17 @@ This is a warning, not a block. If you need to create it here, retry.`);
     const gitCMatch = command.match(/git\s+-C\s+["']?([^"'&|;]+?)["']?\s/);
     if (!repoDir && gitCMatch) {
       repoDir = findRepoRoot(gitCMatch[1].trim());
+    }
+    // Extract absolute paths from the command itself (handles mkdir, cp, mv, etc.)
+    if (!repoDir) {
+      const paths = extractPathsFromCommand(command);
+      for (const p of paths) {
+        const resolved = findRepoRoot(p);
+        if (resolved) {
+          repoDir = resolved;
+          break;
+        }
+      }
     }
   }
 

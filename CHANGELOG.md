@@ -32,6 +32,47 @@
 
 
 
+## 1.9.54 (2026-03-28)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.54
+
+Force redeploy: guard files were stale after v1.9.53.
+
+## The story
+
+v1.9.53 published the .worktrees guard fix to npm but ldm install saw the version as current and skipped redeploying the files. The deployed guard.mjs was still the old version. This release forces a version bump so the installer re-deploys.
+
+This is a bug in the installer: it checks version numbers but not file contents. Filed for future fix.
+
+## Issues closed
+
+- #240 (partial: .worktrees convention)
+
+## 1.9.53 (2026-03-28)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.53
+
+**One-line summary of what this release does**
+
+Tell the story. What was broken or missing? What did we build? Why does the user care?
+Write at least one real paragraph of prose. Not just bullets. The release notes gate
+will block if there is no narrative. Bullets are fine for details, but the story comes first.
+
+## The story
+
+(Write a paragraph here. What was the problem? What does this release fix? Why does it matter?
+This is what users read. Make it worth reading.)
+
+## Issues closed
+
+- #282
+
+## How to verify
+
+```bash
+# Commands to test the changes
+```
+
 ## 1.9.52 (2026-03-27)
 
 # Release Notes: wip-ai-devops-toolbox v1.9.52

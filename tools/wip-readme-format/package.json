@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-readme-format",
-  "version": "1.9.54",
+  "version": "1.9.55",
   "description": "Reformat any repo's README to follow the WIP Computer standard. Agent-first, human-readable.",
   "type": "module",
   "bin": {

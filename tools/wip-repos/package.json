@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-repos",
-  "version": "1.9.52",
+  "version": "1.9.54",
   "type": "module",
   "description": "Repo manifest reconciler. Single source of truth for repo organization. Like prettier for folder structure.",
   "main": "core.mjs",

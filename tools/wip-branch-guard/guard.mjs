@@ -89,13 +89,14 @@ const ALLOWED_BASH_PATTERNS = [
   /\bldm\s+(install|init|doctor|stack|updates)\b/,  // LDM OS commands modify ~/.ldm/, not the repo
   /\brm\s+.*\.ldm\/state\//,    // cleaning LDM state files only, not repo files
   /\bclaude\s+mcp\b/,          // MCP registration, not repo files
+  /\bmkdir\s+.*\.worktrees\b/,  // creating .worktrees/ directory is part of the process
 ];
 
 // Workflow steps for error messages (#213)
 const WORKFLOW_ON_MAIN = `
 The process: worktree -> branch -> commit -> push -> PR -> merge -> wip-release -> deploy-public.
 
-Step 1: git worktree add ../my-worktree -b cc-mini/your-feature
+Step 1: git worktree add .worktrees/<repo>--<branch> -b cc-mini/your-feature
 Step 2: Edit files in the worktree
 Step 3: git add + git commit (with co-authors)
 Step 4: git push -u origin cc-mini/your-feature
@@ -249,15 +250,15 @@ async function main() {
       } catch {}
     }
 
-    // Warn when creating worktrees outside _worktrees/ (#212)
+    // Warn when creating worktrees outside .worktrees/ (#212)
     const wtMatch = cmd.match(/\bgit\s+worktree\s+add\s+["']?([^\s"']+)/);
     if (wtMatch) {
       const wtPath = wtMatch[1];
-      if (!wtPath.includes('_worktrees') && !wtPath.includes('.claude/worktrees') && !wtPath.includes('.ldm/worktrees')) {
-        deny(`WARNING: Creating worktree outside _worktrees/. Use: ldm worktree add <branch>
+      if (!wtPath.includes('.worktrees')) {
+        deny(`WARNING: Creating worktree outside .worktrees/. Use: ldm worktree add <branch>
 
-The convention is _worktrees/<repo>--<branch>/ so worktrees don't mix with real repos.
-Manual equivalent: git worktree add ../_worktrees/<repo>--<branch> -b <branch>
+The convention is .worktrees/<repo>--<branch>/ so worktrees are hidden and don't mix with real repos.
+Manual equivalent: git worktree add .worktrees/<repo>--<branch> -b <branch>
 
 This is a warning, not a block. If you need to create it here, retry.`);
         process.exit(0);

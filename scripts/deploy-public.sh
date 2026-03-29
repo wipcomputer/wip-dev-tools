@@ -44,6 +44,9 @@ if [[ -z "$PRIVATE_REPO" || -z "$PUBLIC_REPO" ]]; then
   exit 1
 fi
 
+# Resolve to absolute path so later cd's don't break when cwd changes
+PRIVATE_REPO="$(cd "$PRIVATE_REPO" && pwd)"
+
 if [[ ! -d "$PRIVATE_REPO/.git" ]]; then
   echo "Error: $PRIVATE_REPO is not a git repository"
   exit 1

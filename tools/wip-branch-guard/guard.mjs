@@ -28,9 +28,25 @@ const BLOCKED_GIT_PATTERNS = [
   /\bgit\s+stash\b/,
   /\bgit\s+reset\b/,
   /\bgit\s+revert\b/,
+  /\bgit\s+clean\b/,
+  /\bgit\s+restore\b/,
 ];
 
-// Git commands that are ALLOWED on main (read-only or merge operations)
+// Destructive commands blocked on ANY branch, not just main.
+// These destroy work that may belong to other agents or the user.
+const DESTRUCTIVE_PATTERNS = [
+  /\bgit\s+clean\s+-[a-zA-Z]*f/,        // git clean -f, -fd, -fdx (deletes untracked files)
+  /\bgit\s+checkout\s+--\s/,             // git checkout -- <path> (reverts files)
+  /\bgit\s+checkout\s+\.\s*$/,           // git checkout . (reverts everything)
+  /\bgit\s+stash\s+drop\b/,             // git stash drop (permanently deletes stashed work)
+  /\bgit\s+stash\s+pop\b/,              // git stash pop (overwrites working tree, drops on success)
+  /\bgit\s+reset\s+--hard\b/,           // git reset --hard (nukes all uncommitted changes)
+  /\bgit\s+restore\s+(?!--staged)/,     // git restore <path> (reverts files, but --staged is safe)
+  /\bpython3?\s+-c\s+.*\bopen\s*\(/,    // python -c "open().write()" bypass (#241)
+  /\bnode\s+-e\s+.*\bfs\.\w*[Ww]rite/,  // node -e "fs.writeFile()" bypass
+];
+
+// Git commands that are ALLOWED on main (read-only or safe operations)
 const ALLOWED_GIT_PATTERNS = [
   /\bgit\s+merge\b/,
   /\bgit\s+pull\b/,
@@ -40,15 +56,16 @@ const ALLOWED_GIT_PATTERNS = [
   /\bgit\s+log\b/,
   /\bgit\s+diff\b/,
   /\bgit\s+branch\b/,
-  /\bgit\s+checkout\b/,
+  /\bgit\s+checkout\s+(?!--)[\w\-\/]+/,  // git checkout <branch> only, NOT git checkout -- <path>
   /\bgit\s+worktree\b/,
-  /\bgit\s+stash\s+drop\b/,
-  /\bgit\s+stash\s+list\b/,
+  /\bgit\s+stash\s+list\b/,              // read-only, just lists stashes
+  /\bgit\s+stash\s+show\b/,              // read-only, just shows stash contents
   /\bgit\s+remote\b/,
   /\bgit\s+describe\b/,
   /\bgit\s+tag\b/,
   /\bgit\s+rev-parse\b/,
   /\bgit\s+show\b/,
+  /\bgit\s+restore\s+--staged\b/,        // unstaging is safe (doesn't change working tree)
 ];
 
 // Non-git bash commands that write files (common patterns)
@@ -77,7 +94,6 @@ const ALLOWED_BASH_PATTERNS = [
   /\bcurl\b/,
   /\bgh\s+(issue|pr|release|api)\b/,
   /\bgh\s+pr\s+merge\b/,
-  /\bnode\s+-e\b/,
   /\blsof\b/,
   /\bopen\s+-a\b/,
   /\bpwd\b/,
@@ -220,6 +236,31 @@ async function main() {
 
   const toolName = input.tool_name || '';
   const toolInput = input.tool_input || {};
+
+  // Block destructive commands on ANY branch.
+  // These destroy work that may belong to other agents or the user.
+  // The agent should NEVER reach for these. If something is stuck, tell the user.
+  if (toolName === BASH_TOOL) {
+    const cmd = (toolInput.command || '');
+    for (const pattern of DESTRUCTIVE_PATTERNS) {
+      if (pattern.test(cmd)) {
+        deny(`BLOCKED: Destructive command detected.
+
+"${cmd.substring(0, 80)}" can permanently destroy uncommitted work (yours, the user's, or another agent's).
+
+DO NOT retry. DO NOT work around this. Instead:
+1. STOP. Think about what you actually need to accomplish.
+2. If you need a clean working tree, use a WORKTREE instead of destroying files on main.
+3. If something is stuck (merge conflict, dirty state), create a safety checkpoint first:
+   git stash create  (saves all uncommitted work without modifying the tree)
+   git stash store <sha> -m "checkpoint before cleanup"
+4. THEN proceed carefully with the minimum necessary operation.
+
+These commands have destroyed work belonging to the user and other agents multiple times.`);
+        process.exit(0);
+      }
+    }
+  }
 
   // Block dangerous flags on ANY branch (these bypass safety checks)
   if (toolName === BASH_TOOL) {

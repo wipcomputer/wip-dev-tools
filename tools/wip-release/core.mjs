@@ -1614,8 +1614,8 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   // 12. Prune stale worktrees (#212)
   try {
     execSync('git worktree prune', { cwd: repoPath, stdio: 'pipe' });
-    // Also check _worktrees/ for dirs whose branches are now merged
-    const worktreesDir = join(dirname(repoPath), '_worktrees');
+    // Also check .worktrees/ for dirs whose branches are now merged
+    const worktreesDir = join(dirname(repoPath), '.worktrees');
     if (existsSync(worktreesDir)) {
       const repoBase = basename(repoPath);
       const wtDirs = readdirSync(worktreesDir, { withFileTypes: true })
@@ -1639,7 +1639,7 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
         } catch {} // Branch not merged or other issue, leave it
       }
       if (wtPruned > 0) {
-        console.log(`  ✓ Pruned ${wtPruned} merged worktree(s) from _worktrees/`);
+        console.log(`  ✓ Pruned ${wtPruned} merged worktree(s) from .worktrees/`);
       }
     }
   } catch {}

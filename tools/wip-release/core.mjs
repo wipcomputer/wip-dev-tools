@@ -7,7 +7,7 @@
 
 import { execSync, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, renameSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, dirname } from 'node:path';
 
 // ── Version ─────────────────────────────────────────────────────────
 

@@ -109,7 +109,7 @@ echo "Syncing files from private repo (excluding ai/, .git/)..."
 # Remove all tracked files in public (except .git) so deleted files get removed
 find "$TMPDIR/public" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 
-# rsync from private, excluding ai/ and .git/
+# rsync from private, excluding ai/, .git/, worktrees, and other dev artifacts
 rsync -a \
   --exclude='ai/' \
   --exclude='_trash/' \
@@ -118,6 +118,8 @@ rsync -a \
   --exclude='.wrangler/' \
   --exclude='.claude/' \
   --exclude='CLAUDE.md' \
+  --exclude='.worktrees/' \
+  --exclude='_worktrees/' \
   "$PRIVATE_REPO/" "$TMPDIR/public/"
 
 cd "$TMPDIR/public"

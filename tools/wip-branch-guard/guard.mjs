@@ -133,6 +133,7 @@ const ALLOWED_BASH_PATTERNS = [
   /\bnpm\s+link\b/,            // global operation, not repo-local
   /\bldm\s+(install|init|doctor|stack|updates)\b/,  // LDM OS commands modify ~/.ldm/, not the repo
   /\brm\s+.*\.ldm\/state\//,    // cleaning LDM state files only, not repo files
+  /\brm\s+.*\.(openclaw|ldm)\/extensions\//,  // cleaning deployed extensions (managed by ldm install, not source code)
   /\bclaude\s+mcp\b/,          // MCP registration, not repo files
   /\bmkdir\s+.*\.worktrees\b/,  // creating .worktrees/ directory is part of the process
 ];

@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-repo-init",
-  "version": "1.9.63",
+  "version": "1.9.64",
   "description": "Scaffold the standard ai/ directory structure in any repo",
   "type": "module",
   "bin": {

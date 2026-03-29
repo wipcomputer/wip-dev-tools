@@ -83,9 +83,10 @@ check "Block Write to TOOLS.md" \
   "block"
 
 # Large replacement (same line count, different content)
-check "Block Edit replacing 8 lines with 8 different lines in SHARED-CONTEXT.md" \
+# SHARED-CONTEXT.md is shared state (maxReplace=30), so 8 lines is allowed
+check "Allow Edit replacing 8 lines with 8 different lines in SHARED-CONTEXT.md (shared state)" \
   '{"tool_name":"Edit","tool_input":{"file_path":"/foo/SHARED-CONTEXT.md","old_string":"line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8","new_string":"new1\nnew2\nnew3\nnew4\nnew5\nnew6\nnew7\nnew8"}}' \
-  "block"
+  "allow"
 
 check "Allow Edit replacing 3 lines in CLAUDE.md" \
   '{"tool_name":"Edit","tool_input":{"file_path":"/foo/CLAUDE.md","old_string":"a\nb\nc","new_string":"x\ny\nz"}}' \

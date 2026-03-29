@@ -526,9 +526,9 @@ The main working tree stays on `main` and is read-only in practice. All developm
 
 ### Worktree Location Convention
 
-**All worktrees go in `_worktrees/` as a sibling to the repos directory.** Never create worktrees as siblings to repos directly. They look like real repos, confuse iCloud sync, and are hard to find/clean.
+**All worktrees go in `.worktrees/` as a sibling to the repos directory.** Never create worktrees as siblings to repos directly. They look like real repos, confuse iCloud sync, and are hard to find/clean.
 
-**Convention:** `_worktrees/<repo-name>--<branch-suffix>/`
+**Convention:** `.worktrees/<repo-name>--<branch-suffix>/`
 
 ```
 repos/
@@ -537,7 +537,7 @@ repos/
       memory-crystal-private/     <- real repo
     devops/
       wip-ai-devops-toolbox-private/  <- real repo
-  _worktrees/
+  .worktrees/
     memory-crystal-private--cc-mini--fix-search/   <- worktree
     wip-ai-devops-toolbox-private--cc-mini--guard/  <- worktree
 ```
@@ -546,7 +546,7 @@ repos/
 
 **Preferred:** Use the `ldm worktree` command:
 ```bash
-ldm worktree add cc-mini/fix-bug    # auto-detects repo, creates in _worktrees/
+ldm worktree add cc-mini/fix-bug    # auto-detects repo, creates in .worktrees/
 ```
 
 **From Claude Code:**
@@ -556,10 +556,10 @@ claude --worktree <name>
 
 **Manual:**
 ```bash
-git worktree add ../_worktrees/<repo>--<branch> -b <branch>
+git worktree add ../.worktrees/<repo>--<branch> -b <branch>
 ```
 
-The branch guard warns if you create worktrees outside `_worktrees/` or `.claude/worktrees/`.
+The branch guard warns if you create worktrees outside `.worktrees/` or `.claude/worktrees/`.
 
 ### Branch Naming
 

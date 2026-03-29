@@ -32,19 +32,48 @@ const BLOCKED_GIT_PATTERNS = [
   /\bgit\s+restore\b/,
 ];
 
-// Destructive commands blocked on ANY branch, not just main.
+// Destructive git commands blocked on ANY branch, not just main.
 // These destroy work that may belong to other agents or the user.
+// Checked against STRIPPED command (quoted content removed) to avoid false positives (#232).
 const DESTRUCTIVE_PATTERNS = [
   /\bgit\s+clean\s+-[a-zA-Z]*f/,        // git clean -f, -fd, -fdx (deletes untracked files)
   /\bgit\s+checkout\s+--\s/,             // git checkout -- <path> (reverts files)
   /\bgit\s+checkout\s+\.\s*$/,           // git checkout . (reverts everything)
   /\bgit\s+stash\s+drop\b/,             // git stash drop (permanently deletes stashed work)
   /\bgit\s+stash\s+pop\b/,              // git stash pop (overwrites working tree, drops on success)
+  /\bgit\s+stash\s+clear\b/,            // git stash clear (drops all stashes)
   /\bgit\s+reset\s+--hard\b/,           // git reset --hard (nukes all uncommitted changes)
   /\bgit\s+restore\s+(?!--staged)/,     // git restore <path> (reverts files, but --staged is safe)
+];
+
+// Code execution bypass patterns. Checked against ORIGINAL command because
+// the attack IS inside quotes (e.g. python -c "open('f').write('x')").
+const DESTRUCTIVE_CODE_PATTERNS = [
   /\bpython3?\s+-c\s+.*\bopen\s*\(/,    // python -c "open().write()" bypass (#241)
   /\bnode\s+-e\s+.*\bfs\.\w*[Ww]rite/,  // node -e "fs.writeFile()" bypass
 ];
+
+// Strip quoted string contents to prevent regex matching inside data.
+// "gh issue create --body 'use git checkout -- to fix'" becomes
+// "gh issue create --body ''" so git checkout -- doesn't false-positive.
+function stripQuotedContent(cmd) {
+  return cmd.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+}
+
+// Check each segment of a compound command independently.
+// "rm -f file ; echo done" splits into ["rm -f file", "echo done"].
+// Each segment checked against blocked, then allowed. An allowed match
+// on one segment can't excuse a blocked match on a different segment (#232).
+function isBlockedCompoundCommand(cmd, blockedPatterns, allowedPatterns) {
+  const stripped = stripQuotedContent(cmd);
+  const segments = stripped.split(/\s*(?:&&|\|\||[;|])\s*/).filter(Boolean);
+  for (const segment of segments) {
+    if (blockedPatterns.some(p => p.test(segment))) {
+      if (!allowedPatterns.some(p => p.test(segment))) return true;
+    }
+  }
+  return false;
+}
 
 // Git commands that are ALLOWED on main (read-only or safe operations)
 const ALLOWED_GIT_PATTERNS = [
@@ -239,11 +268,13 @@ async function main() {
 
   // Block destructive commands on ANY branch.
   // These destroy work that may belong to other agents or the user.
-  // The agent should NEVER reach for these. If something is stuck, tell the user.
   if (toolName === BASH_TOOL) {
     const cmd = (toolInput.command || '');
+    const strippedCmd = stripQuotedContent(cmd);
+
+    // Git destructive patterns: check against stripped command (no quoted content)
     for (const pattern of DESTRUCTIVE_PATTERNS) {
-      if (pattern.test(cmd)) {
+      if (pattern.test(strippedCmd)) {
         deny(`BLOCKED: Destructive command detected.
 
 "${cmd.substring(0, 80)}" can permanently destroy uncommitted work (yours, the user's, or another agent's).
@@ -257,6 +288,17 @@ DO NOT retry. DO NOT work around this. Instead:
 4. THEN proceed carefully with the minimum necessary operation.
 
 These commands have destroyed work belonging to the user and other agents multiple times.`);
+        process.exit(0);
+      }
+    }
+    // Code execution bypasses: check against original command (the attack IS inside quotes)
+    for (const pattern of DESTRUCTIVE_CODE_PATTERNS) {
+      if (pattern.test(cmd)) {
+        deny(`BLOCKED: Code execution bypass detected.
+
+"${cmd.substring(0, 80)}" writes files through a scripting language, bypassing git protections.
+
+Use the proper workflow: edit files in a worktree, commit, push, PR.`);
         process.exit(0);
       }
     }
@@ -375,8 +417,7 @@ This is a warning, not a block. If you need to create it here, retry.`);
     // On a branch but NOT in a worktree. Block writes.
     const isWriteOp = WRITE_TOOLS.has(toolName) ||
       (toolName === BASH_TOOL && command &&
-        BLOCKED_BASH_PATTERNS.some(p => p.test(command)) &&
-        !ALLOWED_BASH_PATTERNS.some(p => p.test(command)));
+        isBlockedCompoundCommand(command, BLOCKED_BASH_PATTERNS, ALLOWED_BASH_PATTERNS));
     if (isWriteOp) {
       deny(`BLOCKED: On branch "${branch}" but not in a worktree.\n\n${WORKFLOW_NOT_WORKTREE}`);
       process.exit(0);
@@ -400,6 +441,7 @@ This is a warning, not a block. If you need to create it here, retry.`);
     /\.ldm\/memory\/shared-log\.jsonl$/,
     /\.ldm\/memory\/daily\/.*\.md$/,
     /\.ldm\/logs\//,
+    /\.claude\/plans\//,              // Claude Code plan files (plan mode)
   ];
 
   if (filePath && SHARED_STATE_PATTERNS.some(p => p.test(filePath))) {
@@ -412,43 +454,19 @@ This is a warning, not a block. If you need to create it here, retry.`);
     process.exit(0);
   }
 
-  // For Bash, check the command
+  // For Bash, check each command segment independently (#232).
+  // No fast-path: an allowed pattern on one segment can't excuse a blocked pattern on another.
   if (toolName === BASH_TOOL && command) {
-    // First check if it's explicitly allowed (read-only)
-    for (const pattern of ALLOWED_BASH_PATTERNS) {
-      if (pattern.test(command)) {
-        process.exit(0);
-      }
+    // Check for blocked git commands (per-segment, quote-stripped)
+    if (isBlockedCompoundCommand(command, BLOCKED_GIT_PATTERNS, ALLOWED_GIT_PATTERNS)) {
+      deny(`BLOCKED: Cannot run "${command.substring(0, 60)}..." on main branch.\n\n${WORKFLOW_ON_MAIN}`);
+      process.exit(0);
     }
 
-    // Check for blocked git commands
-    for (const pattern of BLOCKED_GIT_PATTERNS) {
-      if (pattern.test(command)) {
-        // Make sure it's not an allowed git operation
-        let isAllowed = false;
-        for (const ap of ALLOWED_GIT_PATTERNS) {
-          if (ap.test(command)) { isAllowed = true; break; }
-        }
-        if (!isAllowed) {
-          deny(`BLOCKED: Cannot run "${command.substring(0, 60)}..." on main branch.\n\n${WORKFLOW_ON_MAIN}`);
-          process.exit(0);
-        }
-      }
-    }
-
-    // Check for file-writing bash commands
-    for (const pattern of BLOCKED_BASH_PATTERNS) {
-      if (pattern.test(command)) {
-        // Check it's not a read-only context
-        let isAllowed = false;
-        for (const ap of ALLOWED_BASH_PATTERNS) {
-          if (ap.test(command)) { isAllowed = true; break; }
-        }
-        if (!isAllowed) {
-          deny(`BLOCKED: Cannot run file-modifying command on main branch.\n\n${WORKFLOW_ON_MAIN}`);
-          process.exit(0);
-        }
-      }
+    // Check for file-writing bash commands (per-segment, quote-stripped)
+    if (isBlockedCompoundCommand(command, BLOCKED_BASH_PATTERNS, ALLOWED_BASH_PATTERNS)) {
+      deny(`BLOCKED: Cannot run file-modifying command on main branch.\n\n${WORKFLOW_ON_MAIN}`);
+      process.exit(0);
     }
   }
 

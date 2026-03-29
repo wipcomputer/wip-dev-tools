@@ -149,11 +149,36 @@ function trashReleaseNotes(repoPath) {
 
 function gitCommitAndTag(repoPath, newVersion, notes) {
   const msg = `v${newVersion}: ${notes || 'Release'}`;
-  // Stage known files (ignore missing ones)
+  // Stage ALL files that wip-release modifies:
+  // - Root: package.json, CHANGELOG.md, SKILL.md
+  // - Sub-tools: tools/*/package.json
+  // - Product docs: ai/product/plans-prds/roadmap.md, ai/product/readme-first-product.md
+  // - Trashed release notes: _trash/RELEASE-NOTES-*.md
+  // Using git add -A on specific paths instead of listing each file (#231)
   for (const f of ['package.json', 'CHANGELOG.md', 'SKILL.md']) {
     if (existsSync(join(repoPath, f))) {
       execFileSync('git', ['add', f], { cwd: repoPath, stdio: 'pipe' });
     }
+  }
+  // Stage sub-tool package.json files
+  const toolsDir = join(repoPath, 'tools');
+  if (existsSync(toolsDir)) {
+    for (const sub of readdirSync(toolsDir, { withFileTypes: true })) {
+      if (!sub.isDirectory()) continue;
+      const subPkg = join('tools', sub.name, 'package.json');
+      if (existsSync(join(repoPath, subPkg))) {
+        execFileSync('git', ['add', subPkg], { cwd: repoPath, stdio: 'pipe' });
+      }
+    }
+  }
+  // Stage product docs and trashed release notes
+  const aiProduct = join(repoPath, 'ai', 'product');
+  if (existsSync(aiProduct)) {
+    execFileSync('git', ['add', 'ai/product/'], { cwd: repoPath, stdio: 'pipe' });
+  }
+  const trash = join(repoPath, '_trash');
+  if (existsSync(trash)) {
+    execFileSync('git', ['add', '_trash/'], { cwd: repoPath, stdio: 'pipe' });
   }
   // Use execFileSync to avoid shell injection via notes.
   // --no-verify: wip-release legitimately commits on main (version bump + changelog).
@@ -1235,6 +1260,44 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }
   }
 
+  // 0.95. Run test scripts (if any exist)
+  {
+    const toolsDir = join(repoPath, 'tools');
+    const testFiles = [];
+    if (existsSync(toolsDir)) {
+      for (const sub of readdirSync(toolsDir)) {
+        const testPath = join(toolsDir, sub, 'test.sh');
+        if (existsSync(testPath)) testFiles.push({ tool: sub, path: testPath });
+      }
+    }
+    // Also check repo root test.sh
+    const rootTest = join(repoPath, 'test.sh');
+    if (existsSync(rootTest)) testFiles.push({ tool: '(root)', path: rootTest });
+
+    if (testFiles.length > 0) {
+      let allPassed = true;
+      for (const { tool, path } of testFiles) {
+        try {
+          execFileSync('bash', [path], { cwd: dirname(path), stdio: 'pipe', timeout: 30000 });
+          console.log(`  ✓ Tests passed: ${tool}`);
+        } catch (e) {
+          allPassed = false;
+          console.log(`  ✗ Tests FAILED: ${tool}`);
+          const output = (e.stdout || '').toString().trim();
+          if (output) {
+            for (const line of output.split('\n').slice(-5)) console.log(`    ${line}`);
+          }
+        }
+      }
+      if (!allPassed) {
+        console.log('');
+        console.log('  Fix failing tests before releasing.');
+        console.log('');
+        return { currentVersion, newVersion, dryRun: false, failed: true };
+      }
+    }
+  }
+
   if (dryRun) {
     // Product docs check (dry-run)
     if (!skipProductCheck) {
@@ -1506,31 +1569,33 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       .filter(b => b && b !== 'main' && b !== 'master' && !b.startsWith('*') && !b.includes('--merged-'));
 
     if (merged.length > 0) {
+      const current = execSync('git branch --show-current', { cwd: repoPath, encoding: 'utf8' }).trim();
       console.log(`  Scanning ${merged.length} merged branch(es) for rename...`);
       for (const branch of merged) {
-        const current = execSync('git branch --show-current', { cwd: repoPath, encoding: 'utf8' }).trim();
         if (branch === current) continue;
+        // Skip branches with characters that break git commands
+        if (/[+\s~^:?*\[\]]/.test(branch)) continue;
 
         let mergeDate;
         try {
-          const mergeBase = execSync(`git merge-base main ${branch}`, { cwd: repoPath, encoding: 'utf8' }).trim();
-          mergeDate = execSync(
-            `git log main --format="%ai" --ancestry-path ${mergeBase}..main`,
-            { cwd: repoPath, encoding: 'utf8' }
-          ).trim().split('\n').pop().split(' ')[0];
+          // Use execFileSync (array args) instead of execSync (shell string) to avoid injection
+          const mergeBase = execFileSync('git', ['merge-base', 'main', branch], { cwd: repoPath, encoding: 'utf8' }).trim();
+          const logOutput = execFileSync('git', ['log', 'main', '--format=%ai', '--ancestry-path', `${mergeBase}..main`], { cwd: repoPath, encoding: 'utf8' }).trim();
+          if (logOutput) mergeDate = logOutput.split('\n').pop().split(' ')[0];
         } catch {}
         if (!mergeDate) {
           try {
-            mergeDate = execSync(`git log ${branch} -1 --format="%ai"`, { cwd: repoPath, encoding: 'utf8' }).trim().split(' ')[0];
+            mergeDate = execFileSync('git', ['log', branch, '-1', '--format=%ai'], { cwd: repoPath, encoding: 'utf8' }).trim().split(' ')[0];
           } catch {}
         }
         if (!mergeDate) continue;
 
         const newName = `${branch}--merged-${mergeDate}`;
         try {
-          execSync(`git branch -m "${branch}" "${newName}"`, { cwd: repoPath, stdio: 'pipe' });
-          execSync(`git push origin "${newName}"`, { cwd: repoPath, stdio: 'pipe' });
-          execSync(`git push origin --delete "${branch}"`, { cwd: repoPath, stdio: 'pipe' });
+          execFileSync('git', ['branch', '-m', branch, newName], { cwd: repoPath, stdio: 'pipe' });
+          execFileSync('git', ['push', 'origin', newName], { cwd: repoPath, stdio: 'pipe' });
+          // Remote branch may already be deleted by GitHub PR merge. That's fine.
+          try { execFileSync('git', ['push', 'origin', '--delete', branch], { cwd: repoPath, stdio: 'pipe' }); } catch {}
           console.log(`  ✓ Renamed: ${branch} -> ${newName}`);
         } catch (e) {
           console.log(`  ! Could not rename ${branch}: ${e.message}`);
@@ -1572,8 +1637,8 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
 
         for (let i = KEEP_COUNT; i < branches.length; i++) {
           try {
-            execSync(`git push origin --delete "${branches[i]}"`, { cwd: repoPath, stdio: 'pipe' });
-            execSync(`git branch -d "${branches[i]}" 2>/dev/null || true`, { cwd: repoPath, stdio: 'pipe', shell: true });
+            execFileSync('git', ['push', 'origin', '--delete', branches[i]], { cwd: repoPath, stdio: 'pipe' });
+            try { execFileSync('git', ['branch', '-d', branches[i]], { cwd: repoPath, stdio: 'pipe' }); } catch {}
             pruned++;
           } catch {}
         }
@@ -1596,11 +1661,12 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     let staleCleaned = 0;
     for (const branch of allRemote) {
       if (branch === current) continue;
+      if (/[+\s~^:?*\[\]]/.test(branch)) continue;
       try {
-        execSync(`git merge-base --is-ancestor origin/${branch} origin/main`, { cwd: repoPath, stdio: 'pipe' });
+        execFileSync('git', ['merge-base', '--is-ancestor', `origin/${branch}`, 'origin/main'], { cwd: repoPath, stdio: 'pipe' });
         // If we get here, branch is fully merged
-        execSync(`git push origin --delete "${branch}"`, { cwd: repoPath, stdio: 'pipe' });
-        execSync(`git branch -d "${branch}" 2>/dev/null || true`, { cwd: repoPath, stdio: 'pipe', shell: true });
+        try { execFileSync('git', ['push', 'origin', '--delete', branch], { cwd: repoPath, stdio: 'pipe' }); } catch {}
+        try { execFileSync('git', ['branch', '-d', branch], { cwd: repoPath, stdio: 'pipe' }); } catch {}
         staleCleaned++;
       } catch {}
     }

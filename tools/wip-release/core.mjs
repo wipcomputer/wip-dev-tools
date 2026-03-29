@@ -1184,7 +1184,24 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       console.log(`  ✗ Release notes blocked:`);
       for (const issue of notesCheck.issues) console.log(`    - ${issue}`);
       console.log('');
-      // Scaffold a template so the agent has something to fill in
+      // Only scaffold on feature branches. On main, scaffolding leaves an
+      // untracked file that branch guards prevent removing (#223).
+      let currentBranch = '';
+      try {
+        currentBranch = execFileSync('git', ['branch', '--show-current'], {
+          cwd: repoPath, encoding: 'utf8'
+        }).trim();
+      } catch {}
+
+      const isProtectedBranch = currentBranch === 'main' || currentBranch === 'master';
+
+      if (isProtectedBranch) {
+        console.log(`  Release notes missing. Write RELEASE-NOTES-v${newVersion.replace(/\./g, '-')}.md on your feature branch before merging.`);
+        console.log('');
+        return { currentVersion, newVersion, dryRun: false, failed: true };
+      }
+
+      // Feature branch: scaffold a template so the agent has something to fill in
       const templatePath = scaffoldReleaseNotes(repoPath, newVersion);
       console.log(`  Scaffolded template: ${basename(templatePath)}`);
       console.log('  Fill it in, commit, then run wip-release again.');

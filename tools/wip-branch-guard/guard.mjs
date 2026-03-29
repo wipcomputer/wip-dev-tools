@@ -50,7 +50,7 @@ const DESTRUCTIVE_PATTERNS = [
 // the attack IS inside quotes (e.g. python -c "open('f').write('x')").
 const DESTRUCTIVE_CODE_PATTERNS = [
   /\bpython3?\s+-c\s+.*\bopen\s*\(/,    // python -c "open().write()" bypass (#241)
-  /\bnode\s+-e\s+.*\bfs\.\w*[Ww]rite/,  // node -e "fs.writeFile()" bypass
+  /\bnode\s+-e\s+.*\bwriteFile/,         // node -e "require('fs').writeFile()" or "fs.writeFile()" bypass
 ];
 
 // Strip quoted string contents to prevent regex matching inside data.

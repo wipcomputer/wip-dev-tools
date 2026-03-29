@@ -32,6 +32,79 @@
 
 
 
+## 1.9.63 (2026-03-29)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.63
+
+**Fix all wip-release errors: branch cleanup crashes, shell injection, stale remote refs.**
+
+## The story
+
+Every wip-release run produced errors: "fatal: Not a valid object name +", "remote ref does not exist", and shell injection risks from branch names passed through execSync template strings. These were dismissed as "non-blocking" but they cluttered every release output and masked real problems.
+
+Root cause: branch cleanup code (sections 10 and 11) used `execSync` with template strings, which breaks on branch names with special characters and allows shell injection. Also tried to delete remote branches that GitHub already deleted during PR merge.
+
+Fix: replaced all `execSync` template strings with `execFileSync` array args (safe from injection). Added character validation to skip branches with special chars. Wrapped remote delete in try/catch since GitHub PR merge already handles deletion.
+
+## Issues closed
+
+- #231 (continued: release pipeline reliability)
+
+## How to verify
+
+```bash
+wip-release patch --dry-run
+# Should show no "fatal" or "Not a valid object name" errors
+# Guard tests: cd tools/wip-branch-guard && bash test.sh
+```
+
+## 1.9.62 (2026-03-29)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.62
+
+**Fix wip-release leaving dirty state on main after every release.**
+
+## The story
+
+wip-release writes to 15+ files during a release (root package.json, 12 sub-tool package.json files, SKILL.md, CHANGELOG.md, product docs, trashed release notes). But gitCommitAndTag() only staged 3 files (package.json, CHANGELOG.md, SKILL.md). The other 12+ files were left modified on disk, uncommitted. This blocked git pull on the next operation and required manual `git checkout -- .` every time.
+
+Fix: stage all files that wip-release modifies. Sub-tool package.json files, product docs (ai/product/), and trashed release notes (_trash/) are now included in the release commit.
+
+## Issues closed
+
+- #231 (wip-release rollback version bumps on failure)
+
+## How to verify
+
+```bash
+wip-release patch
+git status
+# Should show clean working tree after release
+```
+
+## 1.9.61 (2026-03-29)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.61
+
+**Add test script for branch guard. Fix node bypass regex.**
+
+## The story
+
+Every guard bug this session (v1.9.56-59) would have been caught by running a test before merging. This release adds test.sh to the guard that pipes test JSON into guard.mjs and verifies allow/deny results. 30 test cases covering destructive commands, quoted strings (Bug 1/3), compound commands (Bug 2), safe commands, and plan files.
+
+Also fixes the node bypass regex: `require('fs').writeFileSync` wasn't caught because the regex looked for `fs.writeFile` literally. Broadened to match `writeFile` after `node -e`.
+
+## Issues closed
+
+- #232 (guard test coverage)
+
+## How to verify
+
+```bash
+cd tools/wip-branch-guard && bash test.sh
+# Should show: 30 passed, 0 failed, 3 skipped
+```
+
 ## 1.9.60 (2026-03-29)
 
 # Release Notes: wip-ai-devops-toolbox v1.9.60

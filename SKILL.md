@@ -5,7 +5,7 @@ license: MIT
 interface: [cli, module, mcp, skill, hook, plugin]
 metadata:
   display-name: "WIP AI DevOps Toolbox"
-  version: "1.9.58"
+  version: "1.9.60"
   homepage: "https://github.com/wipcomputer/wip-ai-devops-toolbox"
   author: "Parker Todd Brooks"
   category: dev-tools

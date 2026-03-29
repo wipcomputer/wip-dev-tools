@@ -32,6 +32,58 @@
 
 
 
+## 1.9.60 (2026-03-29)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.60
+
+**Fix npm package bloat: exclude worktrees and _trash from published tarball.**
+
+## The story
+
+v1.9.59 published 869 files (3.9 MB) to npm because leftover worktree directories and _trash/ were included in the tarball. The .npmignore only excluded ai/ and .DS_Store. Added _trash/, .worktrees/, _worktrees/, .claude/, .wrangler/ to .npmignore. Also cleaned up 10 stale worktrees from previous sessions.
+
+## Issues closed
+
+- #232 (continued cleanup)
+
+## How to verify
+
+```bash
+npm pack --dry-run 2>&1 | tail -5
+# Should show ~200 files, not 869
+```
+
+## 1.9.59 (2026-03-29)
+
+# Release Notes: wip-ai-devops-toolbox v1.9.59
+
+**Fix three bugs in branch guard destructive command handling.**
+
+## The story
+
+v1.9.56 added destructive command blocking but introduced three bugs because the new code was written differently from the existing guard pattern. The existing guard checks allowed patterns before blocked patterns and works per-command. The new code skipped the allowed check and matched against the entire raw command string, causing false positives on quoted text (blocking `gh issue create` when the body mentioned git commands) and false negatives on compound commands (allowing `rm -f file ; echo done` because `echo` is in the allowed list).
+
+Fix: two helper functions that strip quoted content before matching and check each command segment independently. Same pattern as the existing guard code. Also adds `~/.claude/plans/` to the shared state allowlist so plan files are editable.
+
+## Issues closed
+
+- #232 (branch guard three bugs in v1.9.56)
+
+## How to verify
+
+```bash
+# These should now be ALLOWED (were false-positive blocked):
+# gh issue create --body "use git checkout -- to fix"
+# echo "don't run git commit on main"
+
+# These should now be DENIED (were false-negative allowed):
+# rm -f file ; echo done  (on main)
+
+# These should still be DENIED:
+# git checkout -- file.txt
+# python3 -c "open('f').write('x')"
+```
+
 ## 1.9.58 (2026-03-29)
 
 # Release Notes: wip-ai-devops-toolbox v1.9.58

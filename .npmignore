@@ -1,2 +1,7 @@
 ai/
+_trash/
+_worktrees/
+.worktrees/
+.claude/
+.wrangler/
 .DS_Store

@@ -369,6 +369,161 @@ ${issueRefs || '- #XX (replace with actual issue numbers)'}
 }
 
 /**
+ * Collect release notes from merged PRs since the last tag.
+ *
+ * When multiple PRs are batched into a single release, each PR may have
+ * committed its own RELEASE-NOTES-v*.md file. This function finds those
+ * notes in git history and combines them into one document.
+ *
+ * Steps:
+ *   1. git log v{prev}..HEAD --merges --oneline to find merge commits
+ *   2. Extract PR number from "Merge pull request #XX from ..."
+ *   3. Check each merge commit's diff for RELEASE-NOTES*.md files
+ *   4. Read content via git show {sha}:{path}
+ *   5. Combine into a single document (newest first)
+ *
+ * Returns { notes, notesSource, prCount } or null if nothing found.
+ */
+export function collectMergedPRNotes(repoPath, currentVersion, newVersion) {
+  let lastTag;
+  try {
+    lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'],
+      { cwd: repoPath, encoding: 'utf8' }).trim();
+  } catch {
+    return null; // No tags yet
+  }
+
+  // Find merge commits since last tag
+  let mergeLog;
+  try {
+    mergeLog = execFileSync('git', [
+      'log', `${lastTag}..HEAD`, '--merges', '--oneline'
+    ], { cwd: repoPath, encoding: 'utf8' }).trim();
+  } catch {
+    return null;
+  }
+
+  if (!mergeLog) return null;
+
+  const mergeLines = mergeLog.split('\n').filter(Boolean);
+  const prNotes = [];
+
+  for (const line of mergeLines) {
+    // Format: "abc1234 Merge pull request #XX from org/branch"
+    const prMatch = line.match(/^([a-f0-9]+)\s+Merge pull request #(\d+)\s+from\s+(.+)$/);
+    if (!prMatch) continue;
+
+    const [, shortHash, prNum, branchRef] = prMatch;
+
+    // Get the full hash for this merge commit
+    let fullHash;
+    try {
+      fullHash = execFileSync('git', ['rev-parse', shortHash],
+        { cwd: repoPath, encoding: 'utf8' }).trim();
+    } catch {
+      continue;
+    }
+
+    // List files changed in this merge commit.
+    // For merge commits, diff against first parent to see what the PR brought in.
+    // Plain diff-tree on a merge commit shows nothing without -m or -c.
+    let changedFiles;
+    try {
+      changedFiles = execFileSync('git', [
+        'diff', '--name-only', `${fullHash}^1`, fullHash
+      ], { cwd: repoPath, encoding: 'utf8' }).trim();
+    } catch {
+      continue;
+    }
+
+    // Look for RELEASE-NOTES*.md files
+    const noteFiles = changedFiles.split('\n')
+      .filter(f => /^RELEASE-NOTES.*\.md$/i.test(f.trim()));
+
+    if (noteFiles.length === 0) continue;
+
+    // Read the content of each release notes file from that commit
+    for (const noteFile of noteFiles) {
+      try {
+        const content = execFileSync('git', [
+          'show', `${fullHash}:${noteFile.trim()}`
+        ], { cwd: repoPath, encoding: 'utf8' }).trim();
+
+        if (content) {
+          prNotes.push({
+            prNum,
+            branch: branchRef,
+            content,
+            hash: shortHash,
+          });
+        }
+      } catch {
+        // File might have been deleted in the merge. Skip.
+      }
+    }
+  }
+
+  if (prNotes.length === 0) return null;
+
+  // If only one PR had notes, return it directly (no wrapping)
+  if (prNotes.length === 1) {
+    return {
+      notes: prNotes[0].content,
+      notesSource: 'file',
+      prCount: 1,
+    };
+  }
+
+  // Multiple PRs: combine into one document (newest first, already in log order)
+  const pkg = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
+  const name = pkg.name?.replace(/^@[^/]+\//, '') || basename(repoPath);
+
+  const sections = [];
+  sections.push(`# Release Notes: ${name} v${newVersion}`);
+  sections.push('');
+  sections.push(`This release combines ${prNotes.length} merged pull requests.`);
+  sections.push('');
+
+  // Collect all issue refs for a combined summary
+  const allIssueRefs = new Set();
+
+  for (const pr of prNotes) {
+    sections.push(`---`);
+    sections.push('');
+    sections.push(`### PR #${pr.prNum}`);
+    sections.push('');
+
+    // Strip the top-level heading from individual notes to avoid duplicate titles
+    let body = pr.content;
+    body = body.replace(/^#\s+.*\n+/, '');
+    sections.push(body);
+    sections.push('');
+
+    // Collect issue references
+    const refs = body.match(/#\d+/g) || [];
+    for (const ref of refs) allIssueRefs.add(ref);
+  }
+
+  // Add combined issue references at the end
+  if (allIssueRefs.size > 0) {
+    sections.push('---');
+    sections.push('');
+    sections.push('## All issues referenced');
+    sections.push('');
+    for (const ref of allIssueRefs) {
+      sections.push(`- ${ref}`);
+    }
+    sections.push('');
+  }
+
+  return {
+    notes: sections.join('\n'),
+    notesSource: 'file',
+    prCount: prNotes.length,
+  };
+}
+
+/**
  * Check if a file was modified in commits since the last git tag.
  */
 function fileModifiedSinceLastTag(repoPath, relativePath) {

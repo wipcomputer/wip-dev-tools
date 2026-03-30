@@ -5,7 +5,7 @@
  * Release tool CLI. Bumps version, updates docs, publishes.
  */
 
-import { release, detectCurrentVersion } from './core.mjs';
+import { release, detectCurrentVersion, collectMergedPRNotes } from './core.mjs';
 
 const args = process.argv.slice(2);
 const level = args.find(a => ['patch', 'minor', 'major'].includes(a));
@@ -31,6 +31,7 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
 // Release notes priority (highest wins):
 //   1. --notes-file=path          Explicit file path (always wins)
 //   2. RELEASE-NOTES-v{ver}.md    In repo root (always wins over --notes flag)
+//   2.5. Merged PR notes          Auto-combined from git history (#237)
 //   3. ai/dev-updates/YYYY-MM-DD* Today's dev update (wins over --notes flag if longer)
 //   4. --notes="text"             Flag fallback (only if nothing better exists)
 //
@@ -67,6 +68,31 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
         notes = fileContent;
         notesSource = 'file';
         console.log(`  ✓ Found RELEASE-NOTES-v${dashed}.md`);
+      }
+    } catch {}
+  }
+
+  // 2.5. Auto-combine release notes from merged PRs since last tag (#237)
+  // Only runs when no single RELEASE-NOTES file was found on disk.
+  // Scans git merge history for RELEASE-NOTES files committed on PR branches.
+  if (level && notesSource !== 'file') {
+    try {
+      const { collectMergedPRNotes, detectCurrentVersion: dcv, bumpSemver: bs } = await import('./core.mjs');
+      const cwd = process.cwd();
+      const cv = dcv(cwd);
+      const nv = bs(cv, level);
+      const combined = collectMergedPRNotes(cwd, cv, nv);
+      if (combined) {
+        if (flagNotes && flagNotes !== combined.notes) {
+          console.log(`  ! --notes flag ignored: merged PR notes take priority`);
+        }
+        notes = combined.notes;
+        notesSource = combined.notesSource;
+        if (combined.prCount > 1) {
+          console.log(`  \u2713 Combined release notes from ${combined.prCount} merged PRs`);
+        } else {
+          console.log(`  \u2713 Found release notes from merged PR`);
+        }
       }
     } catch {}
   }
@@ -134,9 +160,11 @@ Flags:
 Release notes (REQUIRED, must be a file on disk):
   1. --notes-file=path          Explicit file path
   2. RELEASE-NOTES-v{ver}.md    In repo root (auto-detected)
-  3. ai/dev-updates/YYYY-MM-DD* Today's dev update (auto-detected)
+  3. Merged PR notes             Auto-combined from git history (#237)
+  4. ai/dev-updates/YYYY-MM-DD* Today's dev update (auto-detected)
   The --notes flag is NOT accepted. Write a file. Commit it on your branch.
   The file shows up in the PR diff so it can be reviewed before merge.
+  When batching multiple PRs, each PR's RELEASE-NOTES are auto-combined.
 
 Skill publish to website:
   Add .publish-skill.json to repo root: { "name": "my-tool" }

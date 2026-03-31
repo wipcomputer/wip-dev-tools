@@ -2,7 +2,7 @@
 # Job: daily backup
 # Calls Lesa's existing backup script
 
-SCRIPT="$HOME/Documents/wipcomputer--mac-mini-01/staff/Lēsa/scripts/daily-backup.sh"
+SCRIPT="$HOME/.ldm/bin/ldm-backup.sh"
 
 echo "=== Backup started: $(date) ==="
 

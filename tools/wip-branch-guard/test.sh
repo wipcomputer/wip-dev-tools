@@ -110,7 +110,7 @@ test_case "mkdir .worktrees" allow Bash "mkdir -p .worktrees/repo--branch"
 
 echo ""
 echo "--- Plan files (should ALLOW Write/Edit) ---"
-test_case "Edit plan file" allow Edit "/Users/lesa/.claude/plans/my-plan.md"
+test_case "Edit plan file" allow Edit "$HOME/.claude/plans/my-plan.md"
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="

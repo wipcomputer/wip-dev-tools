@@ -45,9 +45,43 @@ CLI is the universal fallback. MCP and plugin wrappers are optimizations.
 6. Merge PR:               gh pr merge <number> --merge --delete-branch
 7. Rename merged branch:   (see Post-Merge Branch Rename below)
 8. Pull merged main:       git checkout main && git pull origin main
-9. Release:                wip-release patch
-                           # wip-release auto-detects the RELEASE-NOTES file
+9. Release:                wip-release patch     (stable: full pipeline)
+                           wip-release alpha     (prerelease: npm @alpha, silent)
+                           wip-release beta      (prerelease: npm @beta, public notes)
+                           wip-release hotfix    (urgent: npm @latest, no deploy-public)
                            # flags: --dry-run (preview), --no-publish (bump + tag only)
+```
+
+### Release Tracks
+
+Four release tracks. Choose the right one for the situation:
+
+| Track | Command | npm tag | Public code sync | When to use |
+|-------|---------|---------|-----------------|-------------|
+| Alpha | `wip-release alpha` | @alpha | No | Internal testing, not ready for users |
+| Beta | `wip-release beta` | @beta | No | External testing, release candidate |
+| Hotfix | `wip-release hotfix` | @latest | No | Urgent fix, skip deploy-public |
+| Stable | `wip-release patch/minor/major` | @latest | Yes | Normal release, full pipeline |
+
+**Alpha** is silent by default. No public release notes, no code sync. Add `--release-notes` to create a prerelease on the public GitHub repo.
+
+**Beta** publishes prerelease notes to the public GitHub repo by default. Add `--no-release-notes` to skip.
+
+**Hotfix** publishes to npm @latest and creates a release on the public GitHub repo, but does NOT run deploy-public (no code sync). Use this when you need a fix in npm immediately but the public repo code can wait for the next stable release.
+
+**Stable** is the existing behavior. Full pipeline: npm @latest, deploy-public (code sync), full release notes.
+
+Version numbering:
+- Alpha: `1.9.68-alpha.1`, `1.9.68-alpha.2` (increments on repeat)
+- Beta: `1.9.68-beta.1`, `1.9.68-beta.2` (increments on repeat)
+- Hotfix: normal patch bump (`1.9.67` -> `1.9.68`)
+- Stable: normal bump (patch/minor/major)
+
+Install integration:
+```bash
+ldm install              # checks @latest (stable + hotfix)
+ldm install --beta       # checks @beta
+ldm install --alpha      # checks @alpha
 ```
 
 **Important:**

@@ -136,6 +136,8 @@ const ALLOWED_BASH_PATTERNS = [
   /\brm\s+.*\.(openclaw|ldm)\/extensions\//,  // cleaning deployed extensions (managed by ldm install, not source code)
   /\bclaude\s+mcp\b/,          // MCP registration, not repo files
   /\bmkdir\s+.*\.worktrees\b/,  // creating .worktrees/ directory is part of the process
+  /\brm\s+.*\.trash-approved-to-rm/,  // Parker's approved-for-deletion folder (only Parker moves files here, agents only rm)
+  /\brm\s+.*\/_trash\//,              // agent trash directories (agents can mv here and rm here)
 ];
 
 // Workflow steps for error messages (#213)
@@ -320,7 +322,9 @@ Use the proper workflow: edit files in a worktree, commit, push, PR.`);
     // Block npm install -g right after a release (#73)
     // wip-release writes ~/.ldm/state/.last-release on completion.
     // If a release happened < 5 minutes ago, block install unless user explicitly said "install".
-    if (/\bnpm\s+install\s+-g\b/.test(cmd)) {
+    // Exception: prerelease installs (@alpha, @beta) skip the cooldown. The cooldown exists
+    // to enforce dogfooding stable releases. Prerelease installs ARE the dogfooding.
+    if (/\bnpm\s+install\s+-g\b/.test(cmd) && !/@(alpha|beta)\b/.test(cmd)) {
       try {
         const releasePath = join(process.env.HOME || '', '.ldm', 'state', '.last-release');
         if (existsSync(releasePath)) {

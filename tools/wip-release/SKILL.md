@@ -46,6 +46,8 @@ Local release pipeline. One command bumps version, updates all docs, publishes e
 - Releasing a new version of any @wipcomputer package
 - After merging a PR to main and you need to publish
 - Bumping version + changelog + SKILL.md in one step
+- Publishing alpha or beta prereleases for testing
+- Pushing hotfixes to npm without full deploy-public
 
 **Use --dry-run for:**
 - Previewing what a release would do before committing
@@ -55,18 +57,48 @@ Local release pipeline. One command bumps version, updates all docs, publishes e
 
 ### Do NOT Use For
 
-- Pre-release / alpha versions (not yet supported)
 - Repos without a package.json
+
+## Release Tracks
+
+Four release tracks. Each has different behavior for npm tags, public repo sync, and release notes.
+
+| Track | Command | npm tag | Public code sync | Public release notes |
+|-------|---------|---------|-----------------|---------------------|
+| Alpha | `wip-release alpha` | @alpha | No | No (opt in with --release-notes) |
+| Beta | `wip-release beta` | @beta | No | Yes, prerelease (opt out with --no-release-notes) |
+| Hotfix | `wip-release hotfix` | @latest | No | Yes (opt out with --no-release-notes) |
+| Stable | `wip-release patch/minor/major` | @latest | Yes (deploy-public) | Yes, full notes |
+
+### Version numbering
+
+- Alpha: `1.9.68-alpha.1`, `1.9.68-alpha.2`, etc.
+- Beta: `1.9.68-beta.1`, `1.9.68-beta.2`, etc.
+- Hotfix: normal version bump (patch)
+- Stable: normal version bump (patch/minor/major)
 
 ## API Reference
 
 ### CLI
 
 ```bash
-wip-release patch --notes="fix X"           # full pipeline
+# Stable (existing behavior)
+wip-release patch                           # full pipeline
 wip-release minor --dry-run                 # preview only
 wip-release major --no-publish              # bump + tag only
 wip-release patch --skip-product-check      # skip product docs gate
+
+# Alpha
+wip-release alpha                           # npm @alpha, no public notes
+wip-release alpha --release-notes           # npm @alpha + prerelease notes on public
+
+# Beta
+wip-release beta                            # npm @beta + prerelease notes on public
+wip-release beta --no-release-notes         # npm @beta, skip public notes
+
+# Hotfix
+wip-release hotfix                          # npm @latest + public release notes
+wip-release hotfix --no-release-notes       # npm @latest, skip public notes
 ```
 
 ### Product Docs Gate
@@ -108,9 +140,16 @@ After publishing, wip-release auto-copies SKILL.md to your website as plain text
 ### Module
 
 ```javascript
-import { release, detectCurrentVersion, bumpSemver, syncSkillVersion } from '@wipcomputer/wip-release';
+import { release, releasePrerelease, releaseHotfix, detectCurrentVersion, bumpSemver, bumpPrerelease } from '@wipcomputer/wip-release';
 
+// Stable release
 await release({ repoPath: '.', level: 'patch', notes: 'fix', dryRun: false, noPublish: false });
+
+// Alpha/beta prerelease
+await releasePrerelease({ repoPath: '.', track: 'alpha', notes: 'testing', dryRun: false, noPublish: false, publishReleaseNotes: false });
+
+// Hotfix
+await releaseHotfix({ repoPath: '.', notes: 'critical fix', dryRun: false, noPublish: false, publishReleaseNotes: true });
 ```
 
 ## Troubleshooting

@@ -99,6 +99,7 @@ rsync -a \
   --exclude='.git/' \
   --exclude='.DS_Store' \
   --exclude='.wrangler/' \
+  --exclude='.worktrees/' \
   --exclude='.claude/' \
   --exclude='CLAUDE.md' \
   "$PRIVATE_REPO/" "$TMPDIR/public/"
@@ -123,7 +124,7 @@ fi
 BRANCH="$HARNESS_ID/deploy-$(date +%Y%m%d-%H%M%S)"
 
 git add -A
-git commit -m "$COMMIT_MSG (from $COMMIT_HASH)"
+git commit --no-verify -m "$COMMIT_MSG (from $COMMIT_HASH)"
 
 if [[ "$EMPTY_REPO" == "true" ]]; then
   # Empty repo: push directly to main (no base branch to PR against)

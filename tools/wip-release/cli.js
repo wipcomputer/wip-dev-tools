@@ -5,10 +5,10 @@
  * Release tool CLI. Bumps version, updates docs, publishes.
  */
 
-import { release, detectCurrentVersion, collectMergedPRNotes } from './core.mjs';
+import { release, releasePrerelease, releaseHotfix, detectCurrentVersion, collectMergedPRNotes } from './core.mjs';
 
 const args = process.argv.slice(2);
-const level = args.find(a => ['patch', 'minor', 'major'].includes(a));
+const level = args.find(a => ['patch', 'minor', 'major', 'alpha', 'beta', 'hotfix'].includes(a));
 
 function flag(name) {
   const prefix = `--${name}=`;
@@ -23,6 +23,8 @@ const skipStaleCheck = args.includes('--skip-stale-check');
 const skipWorktreeCheck = args.includes('--skip-worktree-check');
 const skipTechDocsCheck = args.includes('--skip-tech-docs-check');
 const skipCoverageCheck = args.includes('--skip-coverage-check');
+const wantReleaseNotes = args.includes('--release-notes');
+const noReleaseNotes = args.includes('--no-release-notes');
 const notesFilePath = flag('notes-file');
 let notes = flag('notes');
 // Bug fix #121: use strict check, not truthiness. --notes="" is empty, not absent.
@@ -51,13 +53,15 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
     }
     notes = readFileSync(resolved, 'utf8').trim();
     notesSource = 'file';
-  } else if (level) {
+  } else if (level && ['patch', 'minor', 'major', 'hotfix'].includes(level)) {
     // 2. Auto-detect RELEASE-NOTES-v{version}.md (ALWAYS checks, even if --notes provided)
+    // Only for stable levels and hotfix. Alpha/beta skip this.
     try {
       const { detectCurrentVersion, bumpSemver } = await import('./core.mjs');
       const cwd = process.cwd();
       const currentVersion = detectCurrentVersion(cwd);
-      const newVersion = bumpSemver(currentVersion, level);
+      const bumpLevel = level === 'hotfix' ? 'patch' : level;
+      const newVersion = bumpSemver(currentVersion, bumpLevel);
       const dashed = newVersion.replace(/\./g, '-');
       const autoFile = join(cwd, `RELEASE-NOTES-v${dashed}.md`);
       if (existsSync(autoFile)) {
@@ -75,12 +79,13 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
   // 2.5. Auto-combine release notes from merged PRs since last tag (#237)
   // Only runs when no single RELEASE-NOTES file was found on disk.
   // Scans git merge history for RELEASE-NOTES files committed on PR branches.
-  if (level && notesSource !== 'file') {
+  if (level && ['patch', 'minor', 'major', 'hotfix'].includes(level) && notesSource !== 'file') {
     try {
       const { collectMergedPRNotes, detectCurrentVersion: dcv, bumpSemver: bs } = await import('./core.mjs');
       const cwd = process.cwd();
       const cv = dcv(cwd);
-      const nv = bs(cv, level);
+      const bumpLevel = level === 'hotfix' ? 'patch' : level;
+      const nv = bs(cv, bumpLevel);
       const combined = collectMergedPRNotes(cwd, cv, nv);
       if (combined) {
         if (flagNotes && flagNotes !== combined.notes) {
@@ -144,27 +149,37 @@ if (!level || args.includes('--help') || args.includes('-h')) {
   console.log(`wip-release ... local release tool${current}
 
 Usage:
-  wip-release patch                    1.0.0 -> 1.0.1
-  wip-release minor                    1.0.0 -> 1.1.0
-  wip-release major                    1.0.0 -> 2.0.0
+  wip-release patch                    1.0.0 -> 1.0.1 (stable)
+  wip-release minor                    1.0.0 -> 1.1.0 (stable)
+  wip-release major                    1.0.0 -> 2.0.0 (stable)
+  wip-release alpha                    1.0.1-alpha.1 (prerelease)
+  wip-release beta                     1.0.1-beta.1 (prerelease)
+  wip-release hotfix                   1.0.0 -> 1.0.1 (hotfix, no deploy-public)
+
+Release tracks:
+  alpha    npm @alpha tag, no public notes (opt in with --release-notes)
+  beta     npm @beta tag, prerelease notes on public (opt out with --no-release-notes)
+  hotfix   npm @latest tag, release notes on public (opt out with --no-release-notes)
+  stable   npm @latest tag, deploy-public, full notes (patch/minor/major)
 
 Flags:
   --notes="description"    Release narrative (what was built and why)
   --notes-file=path        Read release narrative from a markdown file
+  --release-notes          Opt in to public release notes (alpha only)
+  --no-release-notes       Opt out of public release notes (beta, hotfix)
   --dry-run                Show what would happen, change nothing
   --no-publish             Bump + tag only, skip npm/GitHub
   --skip-product-check     Skip product docs check (dev update, roadmap, readme-first)
   --skip-stale-check       Skip stale remote branch check
   --skip-worktree-check    Skip worktree guard (allow release from worktree)
 
-Release notes (REQUIRED, must be a file on disk):
+Release notes (REQUIRED for stable, optional for other tracks):
   1. --notes-file=path          Explicit file path
   2. RELEASE-NOTES-v{ver}.md    In repo root (auto-detected)
   3. Merged PR notes             Auto-combined from git history (#237)
   4. ai/dev-updates/YYYY-MM-DD* Today's dev update (auto-detected)
-  The --notes flag is NOT accepted. Write a file. Commit it on your branch.
-  The file shows up in the PR diff so it can be reviewed before merge.
-  When batching multiple PRs, each PR's RELEASE-NOTES are auto-combined.
+  For stable releases: the --notes flag is NOT accepted. Write a file.
+  For alpha/beta/hotfix: --notes="text" is accepted as a convenience.
 
 Skill publish to website:
   Add .publish-skill.json to repo root: { "name": "my-tool" }
@@ -172,7 +187,7 @@ Skill publish to website:
   After release, SKILL.md is copied to {website}/wip.computer/install/{name}.txt
   and deploy.sh is run to push to VPS.
 
-Pipeline:
+Pipeline (stable):
   1. Bump package.json version
   2. Sync SKILL.md version (if exists)
   3. Update CHANGELOG.md
@@ -181,23 +196,64 @@ Pipeline:
   6. npm publish (via 1Password)
   7. GitHub Packages publish
   8. GitHub release create
-  9. Publish SKILL.md to website (if configured)`);
+  9. Publish SKILL.md to website (if configured)
+
+Pipeline (alpha/beta):
+  1. Bump version with prerelease suffix (-alpha.N / -beta.N)
+  2. npm publish with --tag alpha or --tag beta
+  3. GitHub prerelease (beta default, alpha opt-in)
+
+Pipeline (hotfix):
+  1. Bump patch version (no suffix)
+  2. npm publish with --tag latest
+  3. GitHub release (no deploy-public)`);
   process.exit(level ? 0 : 1);
 }
 
-release({
-  repoPath: process.cwd(),
-  level,
-  notes,
-  notesSource,
-  dryRun,
-  noPublish,
-  skipProductCheck,
-  skipStaleCheck,
-  skipWorktreeCheck,
-  skipTechDocsCheck,
-  skipCoverageCheck,
-}).catch(err => {
-  console.error(`  ✗ ${err.message}`);
-  process.exit(1);
-});
+// Route to the correct release function based on track
+if (level === 'alpha' || level === 'beta') {
+  // Prerelease track: alpha or beta
+  releasePrerelease({
+    repoPath: process.cwd(),
+    track: level,
+    notes,
+    dryRun,
+    noPublish,
+    publishReleaseNotes: level === 'alpha' ? wantReleaseNotes : !noReleaseNotes,
+  }).catch(err => {
+    console.error(`  \u2717 ${err.message}`);
+    process.exit(1);
+  });
+} else if (level === 'hotfix') {
+  // Hotfix track: patch bump, @latest tag, no deploy-public
+  releaseHotfix({
+    repoPath: process.cwd(),
+    notes,
+    notesSource,
+    dryRun,
+    noPublish,
+    publishReleaseNotes: !noReleaseNotes,
+    skipWorktreeCheck,
+  }).catch(err => {
+    console.error(`  \u2717 ${err.message}`);
+    process.exit(1);
+  });
+} else {
+  // Stable track: patch, minor, major
+  release({
+    repoPath: process.cwd(),
+    level,
+    notes,
+    notesSource,
+    dryRun,
+    noPublish,
+    skipProductCheck,
+    skipStaleCheck,
+    skipWorktreeCheck,
+    skipTechDocsCheck,
+    skipCoverageCheck,
+  }).catch(err => {
+    console.error(`  \u2717 ${err.message}`);
+    process.exit(1);
+  });
+}

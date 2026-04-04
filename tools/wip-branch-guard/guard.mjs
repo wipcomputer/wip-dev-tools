@@ -134,6 +134,9 @@ const ALLOWED_BASH_PATTERNS = [
   /\bldm\s+(install|init|doctor|stack|updates)\b/,  // LDM OS commands modify ~/.ldm/, not the repo
   /\brm\s+.*\.ldm\/state\//,    // cleaning LDM state files only, not repo files
   /\brm\s+.*\.(openclaw|ldm)\/extensions\//,  // cleaning deployed extensions (managed by ldm install, not source code)
+  /\bcp\s+.*\.(openclaw|ldm)\/extensions\//,  // hotfix deploy: cp plugin builds to extensions (ldm install is canonical)
+  /\bmv\s+.*\.(openclaw|ldm)\/extensions\//,  // hotfix deploy: mv within extensions
+  /\bmkdir\s+.*\.(openclaw|ldm)\/extensions\//, // hotfix deploy: create extension dirs
   /\bclaude\s+mcp\b/,          // MCP registration, not repo files
   /\bmkdir\s+.*\.worktrees\b/,  // creating .worktrees/ directory is part of the process
   /\brm\s+.*\.trash-approved-to-rm/,  // Parker's approved-for-deletion folder (only Parker moves files here, agents only rm)
@@ -413,6 +416,14 @@ This is a warning, not a block. If you need to create it here, retry.`);
     process.exit(0);
   }
 
+  // Allow everything in repos with zero commits (bootstrap)
+  try {
+    const hasCommits = execSync('git rev-parse HEAD', { cwd: repoDir, stdio: 'pipe' });
+  } catch {
+    // No commits yet. Allow the first commit so the repo can be bootstrapped.
+    process.exit(0);
+  }
+
   if (branch !== 'main' && branch !== 'master' && worktree) {
     // On a branch AND in a worktree. Correct workflow. Allow.
     process.exit(0);
@@ -447,6 +458,12 @@ This is a warning, not a block. If you need to create it here, retry.`);
     /\.ldm\/memory\/daily\/.*\.md$/,
     /\.ldm\/logs\//,
     /\.claude\/plans\//,              // Claude Code plan files (plan mode)
+    /\.ldm\/shared\//,               // Agent docs (deployed by installer)
+    /\.ldm\/messages\//,             // Agent inbox (bridge messages)
+    /\.ldm\/templates\//,            // Templates (deployed by installer)
+    /\.claude\/rules\//,             // Deployed rules
+    /\.openclaw\/extensions\//,      // Deployed OpenClaw extensions (runtime, not source)
+    /\.ldm\/extensions\//,           // Deployed LDM extensions (runtime, not source; symmetry with openclaw)
   ];
 
   if (filePath && SHARED_STATE_PATTERNS.some(p => p.test(filePath))) {

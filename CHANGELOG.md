@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.9.71-alpha.5 (2026-04-04)
+
+wip-branch-guard: bump sub-tool to 1.9.71 so ldm install redeploys the updated guard from #314 and #315
+
+## 1.9.71-alpha.4 (2026-04-04)
+
+Guard: allow cp/mv/mkdir hotfixes to deployed extensions
+
+## 1.9.71-alpha.3 (2026-04-04)
+
+Guard: allow cp/mv/mkdir hotfixes to deployed extensions (.openclaw|.ldm)/extensions/, add .ldm/extensions/ to shared-state patterns for symmetry with .openclaw/extensions/
+
+## 1.9.71-alpha.2 (2026-04-03)
+
+Guard: allow bootstrap in zero-commit repos
+
+## 1.9.71-alpha.1 (2026-04-01)
+
+File guard: allow harness memory writes, guard v1.9.69
+
 ## 1.9.70 (2026-04-01)
 
 ### wip-release

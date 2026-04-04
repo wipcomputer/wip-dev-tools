@@ -116,5 +116,27 @@ check "Allow Write to unrelated file with no pattern match" \
   '{"tool_name":"Write","tool_input":{"file_path":"/src/utils/helper.js","content":"new"}}' \
   "allow"
 
+
+# Harness memory paths (shared state - lenient limits)
+check "Allow Write to harness project memory file" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.claude/projects/-Users-lesa--openclaw/memory/repo-locations.md","content":"new"}}' \
+  "allow"
+
+check "Allow Write to harness global memory file" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.claude/memory/feedback.md","content":"new"}}' \
+  "allow"
+
+check "Allow Edit removing 10 lines from harness memory (lenient limit)" \
+  '{"tool_name":"Edit","tool_input":{"file_path":"/Users/lesa/.claude/projects/-foo/memory/test.md","old_string":"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl","new_string":"x\ny"}}' \
+  "allow"
+
+check "Block Write to SOUL.md even under .claude/projects/memory/" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.claude/projects/foo/memory/SOUL.md","content":"new"}}' \
+  "block"
+
+check "Block Write to SHARED-CONTEXT.md even under .claude path" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.claude/projects/foo/memory/SHARED-CONTEXT.md","content":"new"}}' \
+  "block"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

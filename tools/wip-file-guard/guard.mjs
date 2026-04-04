@@ -48,6 +48,8 @@ const SHARED_STATE_PATHS = [
   /\.ldm\/agents\/.*\/memory\/daily\/.*\.md$/,
   /\.ldm\/memory\/daily\/.*\.md$/,
   /\.ldm\/memory\/shared-log\.jsonl$/,
+  /\.claude\/projects\/.*\/memory\/.*\.md$/,  // harness auto-memory files
+  /\.claude\/memory\/.*\.md$/,                 // harness global memory files
 ];
 
 function isSharedState(filePath) {
@@ -118,13 +120,23 @@ async function main() {
   // Block Write on protected files
   // Exact matches: always block Write (use Edit instead)
   // Pattern matches: only block if file already exists (allow creating new files)
+  // Shared state paths (harness memory, daily logs): allow Write freely
   if (toolName === 'Write') {
     const isExactMatch = PROTECTED.has(fileName);
-    if (isExactMatch || existsSync(filePath)) {
+    if (isExactMatch) {
       deny(`BLOCKED: Write tool on ${match} is not allowed. Use Edit to make specific changes. Never overwrite protected files.`);
       process.exit(0);
     }
-    // Pattern match but file doesn't exist yet — allow creation
+    // Shared state paths get Write access (harness manages its own memory files)
+    if (isSharedState(filePath)) {
+      process.exit(0);
+    }
+    // Other pattern matches: block if file exists, allow creation of new files
+    if (existsSync(filePath)) {
+      deny(`BLOCKED: Write tool on ${match} is not allowed. Use Edit to make specific changes. Never overwrite protected files.`);
+      process.exit(0);
+    }
+    // Pattern match but file doesn't exist yet ... allow creation
     process.exit(0);
   }
 

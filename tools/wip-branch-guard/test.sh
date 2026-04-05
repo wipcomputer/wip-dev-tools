@@ -116,5 +116,56 @@ echo "--- Plan files (should ALLOW Write/Edit) ---"
 test_case "Edit plan file" allow Edit "$HOME/.claude/plans/my-plan.md"
 
 echo ""
+echo "--- SessionStart hook (new in 1.9.73) ---"
+
+# SessionStart emits additionalContext when CWD is on main, otherwise exits
+# silently. Test both shapes via direct stdin injection.
+
+test_session_start() {
+  local desc="$1" cwd="$2" expect="$3"  # expect: "warn" or "silent"
+  local json output
+  json=$(node -e "process.stdout.write(JSON.stringify({hook_event_name:'SessionStart',cwd:process.argv[1],source:'startup'}))" "$cwd")
+  output=$(echo "$json" | node "$GUARD" 2>/dev/null)
+
+  local actual="silent"
+  if echo "$output" | grep -q 'GUARD WARNING' 2>/dev/null; then
+    actual="warn"
+  fi
+
+  if [[ "$actual" == "$expect" ]]; then
+    echo "  PASS: $desc"
+    ((PASS++))
+  else
+    echo "  FAIL: $desc (expected $expect, got $actual)"
+    ((FAIL++))
+  fi
+}
+
+# Main tree of this repo on main (the test is running inside a worktree on a
+# feature branch, so we pass the absolute path to the main tree).
+MAIN_TREE=$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')
+if [[ -n "$MAIN_TREE" ]]; then
+  CURRENT_BRANCH_AT_MAIN=$(cd "$MAIN_TREE" && git branch --show-current 2>/dev/null)
+  if [[ "$CURRENT_BRANCH_AT_MAIN" == "main" || "$CURRENT_BRANCH_AT_MAIN" == "master" ]]; then
+    test_session_start "main tree on main branch warns" "$MAIN_TREE" "warn"
+  else
+    echo "  SKIP: main tree is not on main branch ($CURRENT_BRANCH_AT_MAIN)"
+    ((SKIP++))
+  fi
+fi
+
+# Current worktree is on a feature branch. SessionStart should exit silent.
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null)
+if [[ "$CURRENT_BRANCH" != "main" && "$CURRENT_BRANCH" != "master" && -n "$CURRENT_BRANCH" ]]; then
+  test_session_start "feature branch silent" "$PWD" "silent"
+else
+  echo "  SKIP: not on a feature branch for silent test"
+  ((SKIP++))
+fi
+
+# Non-git directory: silent (nothing to warn about)
+test_session_start "non-git /tmp silent" "/tmp" "silent"
+
+echo ""
 echo "=== Results: $PASS passed, $FAIL failed, $SKIP skipped ==="
 [[ $FAIL -eq 0 ]] && exit 0 || exit 1

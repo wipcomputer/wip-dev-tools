@@ -263,6 +263,109 @@ if (process.argv.includes('--check')) {
   process.exit(branch === 'main' || branch === 'master' ? 1 : 0);
 }
 
+/**
+ * SessionStart handler. Fires once per session boot (startup, resume,
+ * and post-compaction resume). If the session's CWD is a main-branch
+ * working tree of a protected git repo, inject a warning into the boot
+ * context with available worktrees and the stash workaround so the
+ * agent does not enter the compaction loop that wasted approximately
+ * $900 of tokens on 2026-04-05.
+ *
+ * Uses `additionalContext` in the hookSpecificOutput response to
+ * inject text into the session's context without blocking boot.
+ *
+ * Related:
+ *   ai/product/bugs/guard/2026-04-05--cc-mini--guard-master-plan.md Phase 7
+ *   ai/product/bugs/master-plans/bugs-plan-04-05-2026-002.md Wave 2 phase 13
+ */
+function handleSessionStart(input) {
+  const cwd = input.cwd || process.cwd();
+  let branch = null;
+  let repoRoot = null;
+  try {
+    repoRoot = execSync('git rev-parse --show-toplevel 2>/dev/null', {
+      cwd, encoding: 'utf8', timeout: 3000,
+    }).trim();
+    branch = execSync('git branch --show-current 2>/dev/null', {
+      cwd, encoding: 'utf8', timeout: 3000,
+    }).trim();
+  } catch {
+    // Not a git repo, or git plumbing unavailable. Nothing to warn about.
+    process.exit(0);
+  }
+
+  if (!branch || (branch !== 'main' && branch !== 'master')) {
+    // Already on a feature branch, no warning needed.
+    process.exit(0);
+  }
+
+  // We are on main. Enumerate available worktrees so the warning is actionable.
+  const worktrees = [];
+  try {
+    const raw = execSync('git worktree list --porcelain 2>/dev/null', {
+      cwd, encoding: 'utf8', timeout: 3000,
+    });
+    let current = {};
+    for (const line of raw.split('\n')) {
+      if (line.startsWith('worktree ')) {
+        if (current.path) worktrees.push(current);
+        current = { path: line.slice('worktree '.length) };
+      } else if (line.startsWith('branch ')) {
+        current.branch = line.slice('branch '.length).replace(/^refs\/heads\//, '');
+      } else if (line.startsWith('HEAD ')) {
+        current.head = line.slice('HEAD '.length);
+      } else if (line === 'detached') {
+        current.detached = true;
+      }
+    }
+    if (current.path) worktrees.push(current);
+  } catch {}
+
+  // The first entry is always the main working tree. Drop it to get
+  // the list of linked worktrees only.
+  const linkedWorktrees = worktrees.filter(w => w.path !== repoRoot);
+
+  let worktreeList;
+  if (linkedWorktrees.length === 0) {
+    worktreeList = '  (no existing worktrees; create one with: git worktree add .worktrees/<repo>--cc-mini--<feature> -b cc-mini/<feature>)';
+  } else {
+    worktreeList = linkedWorktrees
+      .slice(0, 10)
+      .map(w => `  cd ${w.path}  # branch: ${w.branch || '(detached)'}`)
+      .join('\n');
+    if (linkedWorktrees.length > 10) {
+      worktreeList += `\n  ... and ${linkedWorktrees.length - 10} more (see: git worktree list)`;
+    }
+  }
+
+  const warning = `⚠️  GUARD WARNING: You are in ${repoRoot} on the main branch.
+
+The branch-guard will block file-modifying operations here. Before editing any file, switch to a worktree:
+
+${worktreeList}
+
+Or create a fresh worktree:
+  git worktree add .worktrees/<repo>--cc-mini--<feature> -b cc-mini/<feature>
+
+If you hit "git pull" failing on an untracked file that is already on origin/main, use the native stash escape hatch (shipped 2026-04-05):
+  git stash push -u -- <path>
+  git pull
+  git stash list
+
+Related context:
+  ai/product/bugs/guard/2026-04-05--cc-mini--guard-master-plan.md
+  ai/product/bugs/master-plans/bugs-plan-04-05-2026-002.md`;
+
+  const output = {
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: warning,
+    },
+  };
+  process.stdout.write(JSON.stringify(output));
+  process.exit(0);
+}
+
 async function main() {
   let raw = '';
   for await (const chunk of process.stdin) {
@@ -274,6 +377,21 @@ async function main() {
     input = JSON.parse(raw);
   } catch {
     process.exit(0);
+  }
+
+  // Branch on hook event. Claude Code sends `hook_event_name` in the input
+  // for every hook, so we can dispatch without a separate script per event.
+  // PreToolUse payloads carry tool_name + tool_input; SessionStart payloads
+  // carry cwd + source. Fall back on shape detection for harnesses that omit
+  // hook_event_name (older Claude Code versions, OpenClaw, etc.).
+  const eventName =
+    input.hook_event_name ||
+    input.hookEventName ||
+    (input.tool_name ? 'PreToolUse' : (input.cwd || input.source ? 'SessionStart' : 'unknown'));
+
+  if (eventName === 'SessionStart') {
+    handleSessionStart(input);
+    return; // handleSessionStart exits
   }
 
   const toolName = input.tool_name || '';

@@ -1,6 +1,6 @@
 {
   "name": "@wipcomputer/wip-branch-guard",
-  "version": "1.9.73",
+  "version": "1.9.74",
   "description": "Branch guard with PreToolUse blocking (main branch write protection) and SessionStart warning (main-CWD detection after compaction).",
   "type": "module",
   "scripts": {

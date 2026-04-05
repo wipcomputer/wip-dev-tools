@@ -143,6 +143,17 @@ const ALLOWED_BASH_PATTERNS = [
   /\bmkdir\s+.*\.worktrees\b/,  // creating .worktrees/ directory is part of the process
   /\brm\s+.*\.trash-approved-to-rm/,  // Parker's approved-for-deletion folder (only Parker moves files here, agents only rm)
   /\brm\s+.*\/_trash\//,              // agent trash directories (agents can mv here and rm here)
+
+  // Temp-directory operations (added 2026-04-05, Phase 12 escape-hatch audit).
+  // /tmp, /var/tmp, and macOS /var/folders/<hash>/T/ are explicitly ephemeral
+  // scratch areas outside any git repo. Scripts often need to write test
+  // fixtures, staging tarballs, or captured command output there. Blocking
+  // these forces agents into awkward workarounds or tool-swaps for trivial
+  // operations. Since temp paths are never tracked by git and the guard is
+  // about protecting repo state, temp writes are safe to allow everywhere.
+  /\b(cp|mv|rm|mkdir|touch)\s+[^|;&]*\/(tmp|var\/tmp|var\/folders\/[^\s|;&]+\/T)\//,
+  />\s+[^|;&]*\/(tmp|var\/tmp|var\/folders\/[^\s|;&]+\/T)\//,
+  /\btee\s+[^|;&]*\/(tmp|var\/tmp|var\/folders\/[^\s|;&]+\/T)\//,
 ];
 
 // Workflow steps for error messages (#213)

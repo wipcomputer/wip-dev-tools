@@ -1324,9 +1324,209 @@ export function checkStaleBranches(repoPath, level) {
 // ── Main ────────────────────────────────────────────────────────────
 
 /**
+ * Guard: wip-release must run from the main working tree on the main/master branch.
+ *
+ * Two independent conditions are enforced:
+ *
+ * 1. Linked worktree check: `git rev-parse --git-dir` of a linked worktree
+ *    resolves to a path under `.git/worktrees/...`. If we see that, the caller
+ *    is inside a feature worktree and must switch to the main working tree.
+ * 2. Current branch check: even from the main working tree, `git branch
+ *    --show-current` must be `main` or `master`. If a user checked out a feature
+ *    branch in the main tree, the release would commit to the wrong branch.
+ *
+ * Both conditions bypassable via `--skip-worktree-check` for break-glass scenarios.
+ *
+ * Returns `{ ok: true }` on pass, or `{ ok: false, reason, currentPath, mainPath, branch }`
+ * on fail so the caller can log and return the standard `{ failed: true }` shape.
+ *
+ * Related: `ai/product/bugs/guard/2026-04-05--cc-mini--guard-master-plan.md` Phase 3,
+ * `ai/product/bugs/release-pipeline/2026-04-05--cc-mini--release-pipeline-master-plan.md`
+ * Phase 1. Earlier today a wip-release alpha ran from a worktree branch because
+ * `releasePrerelease` had no worktree check at all and the other two checks did
+ * not cover the "main tree but non-main branch" case. This helper closes both gaps.
+ */
+function enforceMainBranchGuard(repoPath, skipWorktreeCheck) {
+  if (skipWorktreeCheck) {
+    return { ok: true, skipped: true };
+  }
+  try {
+    const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+    if (gitDir.includes('/worktrees/')) {
+      const worktreeList = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+        cwd: repoPath, encoding: 'utf8'
+      });
+      const mainWorktree = worktreeList.split('\n')
+        .find(line => line.startsWith('worktree '));
+      const mainPath = mainWorktree ? mainWorktree.replace('worktree ', '') : '(unknown)';
+      return {
+        ok: false,
+        reason: 'linked-worktree',
+        currentPath: repoPath,
+        mainPath,
+      };
+    }
+    const branch = execFileSync('git', ['branch', '--show-current'], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+    if (branch && branch !== 'main' && branch !== 'master') {
+      return {
+        ok: false,
+        reason: 'non-main-branch',
+        currentPath: repoPath,
+        branch,
+      };
+    }
+    return { ok: true, branch };
+  } catch {
+    // Git command failed: skip check gracefully so release can still run
+    // in CI or unusual environments where git plumbing is restricted.
+    return { ok: true, skipped: true };
+  }
+}
+
+/**
+ * Validate that sub-tool package.json versions were bumped when their files changed.
+ *
+ * Scans `tools/*\/package.json` in monorepo-style toolboxes. For each sub-tool
+ * whose files changed since the last git tag, verifies the package.json version
+ * differs from the version at that tag. If not, this used to be a WARNING that
+ * let the release proceed, which shipped at least one "committed but never
+ * deployed" bug earlier today (guard 1.9.71 had new code but the same version,
+ * so ldm install ignored the sub-tool on redeploy).
+ *
+ * Phase 8 of the release-pipeline master plan: WARNING becomes ERROR by default.
+ * Callers who genuinely want to proceed without bumping (e.g., a release that
+ * touches sub-tool files in a non-shipping way like CI config) pass
+ * `allowSubToolDrift: true`.
+ *
+ * Returns `{ ok: true }` on pass, `{ ok: false }` if any sub-tool drift was
+ * detected without the allow flag.
+ *
+ * Related: `ai/product/bugs/release-pipeline/2026-04-05--cc-mini--release-pipeline-master-plan.md`
+ * Phase 8.
+ */
+function validateSubToolVersions(repoPath, allowSubToolDrift) {
+  const toolsDir = join(repoPath, 'tools');
+  if (!existsSync(toolsDir)) {
+    return { ok: true };
+  }
+  let lastTag = null;
+  try {
+    lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+  } catch {
+    return { ok: true }; // No prior tag, nothing to compare against
+  }
+  if (!lastTag) return { ok: true };
+
+  let driftDetected = false;
+  let entries;
+  try {
+    entries = readdirSync(toolsDir, { withFileTypes: true });
+  } catch {
+    return { ok: true };
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const subDir = join('tools', entry.name);
+    const subPkgPath = join(toolsDir, entry.name, 'package.json');
+    if (!existsSync(subPkgPath)) continue;
+    try {
+      const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD', '--', subDir], {
+        cwd: repoPath, encoding: 'utf8'
+      }).trim();
+      if (!diff) continue;
+      const currentSubVersion = JSON.parse(readFileSync(subPkgPath, 'utf8')).version;
+      let oldSubVersion = null;
+      try {
+        oldSubVersion = JSON.parse(
+          execFileSync('git', ['show', `${lastTag}:${subDir}/package.json`], {
+            cwd: repoPath, encoding: 'utf8'
+          })
+        ).version;
+      } catch {}
+      if (currentSubVersion === oldSubVersion) {
+        if (allowSubToolDrift) {
+          console.log(`  ! WARNING (allowed by --allow-sub-tool-drift): ${entry.name} has changed files since ${lastTag} but version is still ${currentSubVersion}`);
+          console.log(`    Changed: ${diff.split('\n').join(', ')}`);
+        } else {
+          console.log(`  \u2717 ${entry.name} has changed files since ${lastTag} but tools/${entry.name}/package.json version is still ${currentSubVersion}.`);
+          console.log(`    Changed: ${diff.split('\n').join(', ')}`);
+          console.log(`    Bump tools/${entry.name}/package.json before releasing, or pass --allow-sub-tool-drift to override.`);
+          console.log('');
+          driftDetected = true;
+        }
+      }
+    } catch {}
+  }
+  return { ok: !driftDetected };
+}
+
+/**
+ * Pre-tag collision check. Returns `{ ok: true }` if no collision, otherwise
+ * `{ ok: false, tag }` with a message logged. Phase 2 of the release-pipeline
+ * master plan: earlier today `wip-release alpha` failed mid-pipeline because
+ * `v1.9.71-alpha.4` and `v1.9.71-alpha.5` existed as local-only tags from
+ * prior failed releases. The release tool has no recovery path; this helper
+ * catches the collision before the bump+commit happens, so the user gets a
+ * clear error and concrete recovery command instead of a mid-pipeline failure.
+ */
+function checkTagCollision(repoPath, newVersion) {
+  const tag = `v${newVersion}`;
+  try {
+    const localTags = execFileSync('git', ['tag', '-l', tag], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+    if (localTags === tag) {
+      // Tag exists locally. Is it also on remote?
+      try {
+        const remoteTags = execFileSync('git', ['ls-remote', '--tags', 'origin', tag], {
+          cwd: repoPath, encoding: 'utf8'
+        }).trim();
+        if (remoteTags.includes(tag)) {
+          // Tag is on remote: legitimate prior release. Refuse.
+          console.log(`  \u2717 Tag ${tag} already exists on origin (prior release).`);
+          console.log(`    Bump the version manually in package.json or run with a different level.`);
+          console.log('');
+          return { ok: false, tag, reason: 'on-remote' };
+        }
+      } catch {}
+      // Tag exists locally but NOT on remote: stale leftover from a failed release.
+      // Refuse with a concrete recovery command so the user knows this is safe to clean up.
+      console.log(`  \u2717 Tag ${tag} exists locally but not on origin (stale leftover from a prior failed release).`);
+      console.log(`    Safe to delete because it was never pushed. Recover with:`);
+      console.log(`      git tag -d ${tag} && wip-release <track>`);
+      console.log('');
+      return { ok: false, tag, reason: 'stale-local' };
+    }
+  } catch {}
+  return { ok: true };
+}
+
+function logMainBranchGuardFailure(result) {
+  if (result.reason === 'linked-worktree') {
+    console.log(`  \u2717 wip-release must run from the main working tree, not a worktree.`);
+    console.log(`    Current: ${result.currentPath}`);
+    console.log(`    Main working tree: ${result.mainPath}`);
+    console.log(`    Switch to the main working tree and run again:`);
+    console.log(`      cd ${result.mainPath} && wip-release <track>`);
+  } else if (result.reason === 'non-main-branch') {
+    console.log(`  \u2717 wip-release must run on the main branch, not a feature branch.`);
+    console.log(`    Current branch: ${result.branch}`);
+    console.log(`    Switch to main and pull latest:`);
+    console.log(`      git checkout main && git pull && wip-release <track>`);
+  }
+  console.log('');
+}
+
+/**
  * Run the full release pipeline.
  */
-export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck, skipTechDocsCheck, skipCoverageCheck }) {
+export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck, skipTechDocsCheck, skipCoverageCheck, allowSubToolDrift }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, level);
@@ -1336,33 +1536,15 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   console.log(`  ${repoName}: ${currentVersion} -> ${newVersion} (${level})`);
   console.log(`  ${'─'.repeat(40)}`);
 
-  // -1. Worktree guard: block releases from linked worktrees
-  if (!skipWorktreeCheck) {
-    try {
-      const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
-        cwd: repoPath, encoding: 'utf8'
-      }).trim();
-
-      // Linked worktrees have "/worktrees/" in their git-dir path
-      if (gitDir.includes('/worktrees/')) {
-        // Get the main working tree path from `git worktree list`
-        const worktreeList = execFileSync('git', ['worktree', 'list', '--porcelain'], {
-          cwd: repoPath, encoding: 'utf8'
-        });
-        const mainWorktree = worktreeList.split('\n')
-          .find(line => line.startsWith('worktree '));
-        const mainPath = mainWorktree ? mainWorktree.replace('worktree ', '') : '(unknown)';
-
-        console.log(`  \u2717 wip-release must run from the main working tree, not a worktree.`);
-        console.log(`    Current: ${repoPath}`);
-        console.log(`    Main working tree: ${mainPath}`);
-        console.log(`    Switch to the main working tree and run again.`);
-        console.log('');
-        return { currentVersion, newVersion, dryRun: false, failed: true };
-      }
-      console.log('  \u2713 Running from main working tree');
-    } catch {
-      // Git command failed... skip check gracefully
+  // -1. Main-branch guard: block releases from linked worktrees or non-main branches
+  {
+    const guardResult = enforceMainBranchGuard(repoPath, skipWorktreeCheck);
+    if (!guardResult.ok) {
+      logMainBranchGuardFailure(guardResult);
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+    if (!guardResult.skipped) {
+      console.log(`  \u2713 Running from main working tree on ${guardResult.branch ?? 'main'}`);
     }
   }
 
@@ -1671,37 +1853,23 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     return { currentVersion, newVersion, dryRun: true };
   }
 
+  // 1.25. Pre-bump tag collision check (Phase 2).
+  {
+    const collision = checkTagCollision(repoPath, newVersion);
+    if (!collision.ok) {
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+  }
+
   // 1. Bump package.json
   writePackageVersion(repoPath, newVersion);
   console.log(`  ✓ package.json -> ${newVersion}`);
 
-  // 1.5. Validate sub-tool version bumps in toolbox repos (tools/*/)
-  // Sub-tools have independent versions. If files changed since last tag
-  // but the version didn't bump, warn. Developer must bump manually.
-  const toolsDir = join(repoPath, 'tools');
-  if (existsSync(toolsDir)) {
-    const lastTag = (() => { try { return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: repoPath, encoding: 'utf8' }).trim(); } catch { return null; } })();
-    if (lastTag) {
-      try {
-        const entries = readdirSync(toolsDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (!entry.isDirectory()) continue;
-          const subDir = join('tools', entry.name);
-          const subPkgPath = join(toolsDir, entry.name, 'package.json');
-          if (!existsSync(subPkgPath)) continue;
-          try {
-            const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD', '--', subDir], { cwd: repoPath, encoding: 'utf8' }).trim();
-            if (!diff) continue;
-            const currentSubVersion = JSON.parse(readFileSync(subPkgPath, 'utf8')).version;
-            const oldSubVersion = (() => { try { return JSON.parse(execFileSync('git', ['show', `${lastTag}:${subDir}/package.json`], { cwd: repoPath, encoding: 'utf8' })).version; } catch { return null; } })();
-            if (currentSubVersion === oldSubVersion) {
-              console.log(`  ! WARNING: ${entry.name} has changed files since ${lastTag} but version is still ${currentSubVersion}`);
-              console.log(`    Changed: ${diff.split('\n').join(', ')}`);
-              console.log(`    Bump tools/${entry.name}/package.json before releasing.`);
-            }
-          } catch {}
-        }
-      } catch {}
+  // 1.5. Validate sub-tool version bumps (Phase 8: error by default)
+  {
+    const subToolResult = validateSubToolVersions(repoPath, allowSubToolDrift);
+    if (!subToolResult.ok) {
+      return { currentVersion, newVersion, dryRun: false, failed: true };
     }
   }
 
@@ -2017,7 +2185,7 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
  * No deploy-public. No code sync. No CHANGELOG gate. No product docs gate.
  * Lightweight: bump version, npm publish with tag, optional GitHub prerelease.
  */
-export async function releasePrerelease({ repoPath, track, notes, dryRun, noPublish, publishReleaseNotes }) {
+export async function releasePrerelease({ repoPath, track, notes, dryRun, noPublish, publishReleaseNotes, skipWorktreeCheck, allowSubToolDrift }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpPrerelease(currentVersion, track);
@@ -2026,6 +2194,20 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
   console.log('');
   console.log(`  ${repoName}: ${currentVersion} -> ${newVersion} (${track})`);
   console.log(`  ${'─'.repeat(40)}`);
+
+  // Main-branch guard: worktree + non-main branch check via shared helper.
+  // Runs before the dry-run short-circuit so preview output from a feature
+  // branch still refuses instead of printing a misleading "would bump" plan.
+  {
+    const guardResult = enforceMainBranchGuard(repoPath, skipWorktreeCheck);
+    if (!guardResult.ok) {
+      logMainBranchGuardFailure(guardResult);
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+    if (!guardResult.skipped) {
+      console.log(`  \u2713 Running from main working tree on ${guardResult.branch ?? 'main'}`);
+    }
+  }
 
   if (dryRun) {
     console.log(`  [dry run] Would bump package.json to ${newVersion}`);
@@ -2043,38 +2225,23 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
     return { currentVersion, newVersion, dryRun: true };
   }
 
+  // 1.25. Pre-bump tag collision check (Phase 2).
+  {
+    const collision = checkTagCollision(repoPath, newVersion);
+    if (!collision.ok) {
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+  }
+
   // 1. Bump package.json
   writePackageVersion(repoPath, newVersion);
   console.log(`  \u2713 package.json -> ${newVersion}`);
 
-  // 1.5. Validate sub-tool version bumps in toolbox repos (tools/*/)
-  // If a sub-tool's files changed since the last tag but its version didn't bump, warn.
-  const toolsDir = join(repoPath, 'tools');
-  if (existsSync(toolsDir)) {
-    const lastTag = (() => { try { return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: repoPath, encoding: 'utf8' }).trim(); } catch { return null; } })();
-    if (lastTag) {
-      try {
-        const entries = readdirSync(toolsDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (!entry.isDirectory()) continue;
-          const subDir = join('tools', entry.name);
-          const subPkgPath = join(toolsDir, entry.name, 'package.json');
-          if (!existsSync(subPkgPath)) continue;
-          // Check if any files in this sub-tool changed since last tag
-          try {
-            const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD', '--', subDir], { cwd: repoPath, encoding: 'utf8' }).trim();
-            if (!diff) continue; // No changes, skip
-            // Files changed. Check if version was bumped.
-            const currentSubVersion = JSON.parse(readFileSync(subPkgPath, 'utf8')).version;
-            const oldSubVersion = (() => { try { return JSON.parse(execFileSync('git', ['show', `${lastTag}:${subDir}/package.json`], { cwd: repoPath, encoding: 'utf8' })).version; } catch { return null; } })();
-            if (currentSubVersion === oldSubVersion) {
-              console.log(`  ! WARNING: ${entry.name} has changed files since ${lastTag} but version is still ${currentSubVersion}`);
-              console.log(`    Changed: ${diff.split('\n').join(', ')}`);
-              console.log(`    Bump tools/${entry.name}/package.json before releasing.`);
-            }
-          } catch {}
-        }
-      } catch {}
+  // 1.5. Validate sub-tool version bumps (Phase 8: error by default)
+  {
+    const subToolResult = validateSubToolVersions(repoPath, allowSubToolDrift);
+    if (!subToolResult.ok) {
+      return { currentVersion, newVersion, dryRun: false, failed: true };
     }
   }
 
@@ -2158,7 +2325,7 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
  * Lighter gates than stable: no product docs check, no stale branch check.
  * Still runs: worktree guard, license compliance, tests.
  */
-export async function releaseHotfix({ repoPath, notes, notesSource, dryRun, noPublish, publishReleaseNotes, skipWorktreeCheck }) {
+export async function releaseHotfix({ repoPath, notes, notesSource, dryRun, noPublish, publishReleaseNotes, skipWorktreeCheck, allowSubToolDrift }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, 'patch');
@@ -2168,27 +2335,16 @@ export async function releaseHotfix({ repoPath, notes, notesSource, dryRun, noPu
   console.log(`  ${repoName}: ${currentVersion} -> ${newVersion} (hotfix)`);
   console.log(`  ${'─'.repeat(40)}`);
 
-  // Worktree guard
-  if (!skipWorktreeCheck) {
-    try {
-      const gitDir = execFileSync('git', ['rev-parse', '--git-dir'], {
-        cwd: repoPath, encoding: 'utf8'
-      }).trim();
-      if (gitDir.includes('/worktrees/')) {
-        const worktreeList = execFileSync('git', ['worktree', 'list', '--porcelain'], {
-          cwd: repoPath, encoding: 'utf8'
-        });
-        const mainWorktree = worktreeList.split('\n')
-          .find(line => line.startsWith('worktree '));
-        const mainPath = mainWorktree ? mainWorktree.replace('worktree ', '') : '(unknown)';
-        console.log(`  \u2717 wip-release must run from the main working tree, not a worktree.`);
-        console.log(`    Current: ${repoPath}`);
-        console.log(`    Main working tree: ${mainPath}`);
-        console.log('');
-        return { currentVersion, newVersion, dryRun: false, failed: true };
-      }
-      console.log('  \u2713 Running from main working tree');
-    } catch {}
+  // Main-branch guard: worktree + non-main branch check via shared helper
+  {
+    const guardResult = enforceMainBranchGuard(repoPath, skipWorktreeCheck);
+    if (!guardResult.ok) {
+      logMainBranchGuardFailure(guardResult);
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+    if (!guardResult.skipped) {
+      console.log(`  \u2713 Running from main working tree on ${guardResult.branch ?? 'main'}`);
+    }
   }
 
   // License compliance gate
@@ -2275,35 +2431,23 @@ export async function releaseHotfix({ repoPath, notes, notesSource, dryRun, noPu
     return { currentVersion, newVersion, dryRun: true };
   }
 
+  // 1.25. Pre-bump tag collision check (Phase 2).
+  {
+    const collision = checkTagCollision(repoPath, newVersion);
+    if (!collision.ok) {
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+  }
+
   // 1. Bump package.json
   writePackageVersion(repoPath, newVersion);
   console.log(`  \u2713 package.json -> ${newVersion}`);
 
-  // 1.5. Validate sub-tool version bumps in toolbox repos (tools/*/)
-  const toolsDir = join(repoPath, 'tools');
-  if (existsSync(toolsDir)) {
-    const lastTag = (() => { try { return execFileSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: repoPath, encoding: 'utf8' }).trim(); } catch { return null; } })();
-    if (lastTag) {
-      try {
-        const entries = readdirSync(toolsDir, { withFileTypes: true });
-        for (const entry of entries) {
-          if (!entry.isDirectory()) continue;
-          const subDir = join('tools', entry.name);
-          const subPkgPath = join(toolsDir, entry.name, 'package.json');
-          if (!existsSync(subPkgPath)) continue;
-          try {
-            const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD', '--', subDir], { cwd: repoPath, encoding: 'utf8' }).trim();
-            if (!diff) continue;
-            const currentSubVersion = JSON.parse(readFileSync(subPkgPath, 'utf8')).version;
-            const oldSubVersion = (() => { try { return JSON.parse(execFileSync('git', ['show', `${lastTag}:${subDir}/package.json`], { cwd: repoPath, encoding: 'utf8' })).version; } catch { return null; } })();
-            if (currentSubVersion === oldSubVersion) {
-              console.log(`  ! WARNING: ${entry.name} has changed files since ${lastTag} but version is still ${currentSubVersion}`);
-              console.log(`    Changed: ${diff.split('\n').join(', ')}`);
-              console.log(`    Bump tools/${entry.name}/package.json before releasing.`);
-            }
-          } catch {}
-        }
-      } catch {}
+  // 1.5. Validate sub-tool version bumps (Phase 8: error by default)
+  {
+    const subToolResult = validateSubToolVersions(repoPath, allowSubToolDrift);
+    if (!subToolResult.ok) {
+      return { currentVersion, newVersion, dryRun: false, failed: true };
     }
   }
 

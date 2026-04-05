@@ -23,6 +23,7 @@ const skipStaleCheck = args.includes('--skip-stale-check');
 const skipWorktreeCheck = args.includes('--skip-worktree-check');
 const skipTechDocsCheck = args.includes('--skip-tech-docs-check');
 const skipCoverageCheck = args.includes('--skip-coverage-check');
+const allowSubToolDrift = args.includes('--allow-sub-tool-drift');
 const wantReleaseNotes = args.includes('--release-notes');
 const noReleaseNotes = args.includes('--no-release-notes');
 const notesFilePath = flag('notes-file');
@@ -171,7 +172,8 @@ Flags:
   --no-publish             Bump + tag only, skip npm/GitHub
   --skip-product-check     Skip product docs check (dev update, roadmap, readme-first)
   --skip-stale-check       Skip stale remote branch check
-  --skip-worktree-check    Skip worktree guard (allow release from worktree)
+  --skip-worktree-check    Skip main-branch + worktree guard (break-glass only)
+  --allow-sub-tool-drift   Allow release even if a sub-tool's files changed since the last tag without a version bump (error by default)
 
 Release notes (REQUIRED for stable, optional for other tracks):
   1. --notes-file=path          Explicit file path
@@ -220,6 +222,8 @@ if (level === 'alpha' || level === 'beta') {
     dryRun,
     noPublish,
     publishReleaseNotes: level === 'alpha' ? wantReleaseNotes : !noReleaseNotes,
+    skipWorktreeCheck,
+    allowSubToolDrift,
   }).catch(err => {
     console.error(`  \u2717 ${err.message}`);
     process.exit(1);
@@ -234,6 +238,7 @@ if (level === 'alpha' || level === 'beta') {
     noPublish,
     publishReleaseNotes: !noReleaseNotes,
     skipWorktreeCheck,
+    allowSubToolDrift,
   }).catch(err => {
     console.error(`  \u2717 ${err.message}`);
     process.exit(1);
@@ -252,6 +257,7 @@ if (level === 'alpha' || level === 'beta') {
     skipWorktreeCheck,
     skipTechDocsCheck,
     skipCoverageCheck,
+    allowSubToolDrift,
   }).catch(err => {
     console.error(`  \u2717 ${err.message}`);
     process.exit(1);

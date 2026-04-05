@@ -89,6 +89,8 @@ const ALLOWED_GIT_PATTERNS = [
   /\bgit\s+worktree\b/,
   /\bgit\s+stash\s+list\b/,              // read-only, just lists stashes
   /\bgit\s+stash\s+show\b/,              // read-only, just shows stash contents
+  /\bgit\s+stash\s+(push|save)\b/,       // saving to stash is non-destructive; drop/pop/clear blocked in DESTRUCTIVE_PATTERNS
+  /\bgit\s+stash\s*$/,                   // bare "git stash" = "git stash push"; same safety
   /\bgit\s+remote\b/,
   /\bgit\s+describe\b/,
   /\bgit\s+tag\b/,
@@ -156,7 +158,12 @@ Step 6: Back in main repo: git pull
 Step 7: wip-release patch (with RELEASE-NOTES on the branch, not after)
 Step 8: deploy-public.sh to sync public repo
 
-Release notes go ON the feature branch, committed with the code. Not as a separate PR.`.trim();
+Release notes go ON the feature branch, committed with the code. Not as a separate PR.
+
+STUCK clearing an untracked file before git pull? Use stash (non-destructive):
+  git stash push -u -- <path>    # move untracked file aside
+  git pull                       # pulls cleanly
+  git stash list                 # file is preserved in stash, not lost`.trim();
 
 const WORKFLOW_NOT_WORKTREE = `
 You're on a branch but not in a worktree. Use a worktree so the main working tree stays clean.

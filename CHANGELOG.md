@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.71-alpha.10 (2026-04-05)
+
+Phase 6: auto-run deploy-public + Phase 7: classify npm publish errors
+
 ## 1.9.71-alpha.9 (2026-04-05)
 
 # v1.9.71-alpha.8

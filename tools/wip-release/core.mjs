@@ -1626,6 +1626,79 @@ function logPushFailure(result, tag) {
   }
 }
 
+/**
+ * Resolve the public GitHub repo name for a private-to-public mirror setup.
+ *
+ * Strategy:
+ *   1. Read `origin` remote URL (e.g. git@github.com:owner/repo-private.git)
+ *   2. Strip `-private` suffix to get the public repo name
+ *   3. Return `owner/repo` format suitable for gh CLI
+ *
+ * Returns null if the remote URL cannot be parsed or the repo name does not
+ * end in `-private` (in which case the caller should skip deploy-public as a
+ * no-op rather than error).
+ */
+function resolvePublicRepoName(repoPath) {
+  try {
+    const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+    // Match owner/repo from either SSH (git@github.com:owner/repo.git) or HTTPS
+    const match = remoteUrl.match(/github\.com[:/]([^/]+)\/(.+?)(\.git)?$/);
+    if (!match) return null;
+    const [, owner, repoName] = match;
+    if (!repoName.endsWith('-private')) {
+      return null;
+    }
+    return `${owner}/${repoName.replace(/-private$/, '')}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Run deploy-public.sh as the final step of the release pipeline.
+ *
+ * Previously deploy-public was a separate manual step. Every release that
+ * forgot it left the public mirror stale, so `ldm install` pulled old code
+ * from the public repo. Now wip-release invokes it automatically for stable
+ * and prerelease tracks (hotfix still skips, per prior convention).
+ *
+ * Callable with `--no-deploy-public` to opt out.
+ *
+ * Skips silently if:
+ *   - The repo has no tools/deploy-public/deploy-public.sh (not a toolbox-
+ *     style repo, or deploy-public is provided by a parent install)
+ *   - The origin remote is not a -private repo (no public mirror to sync)
+ *
+ * Related: `ai/product/bugs/release-pipeline/2026-04-05--cc-mini--release-pipeline-master-plan.md` Phase 6.
+ */
+function runDeployPublic(repoPath, { skip } = {}) {
+  if (skip) {
+    return { ok: true, skipped: true, reason: 'flag' };
+  }
+  const scriptPath = join(repoPath, 'tools', 'deploy-public', 'deploy-public.sh');
+  if (!existsSync(scriptPath)) {
+    return { ok: true, skipped: true, reason: 'no-script' };
+  }
+  const publicRepo = resolvePublicRepoName(repoPath);
+  if (!publicRepo) {
+    return { ok: true, skipped: true, reason: 'not-private-repo' };
+  }
+  try {
+    execFileSync('bash', [scriptPath, repoPath, publicRepo], {
+      cwd: repoPath, stdio: 'inherit',
+    });
+    return { ok: true, publicRepo };
+  } catch (err) {
+    return {
+      ok: false,
+      detail: String(err?.stderr ?? err?.message ?? err),
+      publicRepo,
+    };
+  }
+}
+
 function logMainBranchGuardFailure(result) {
   if (result.reason === 'linked-worktree') {
     console.log(`  \u2717 wip-release must run from the main working tree, not a worktree.`);
@@ -1645,7 +1718,7 @@ function logMainBranchGuardFailure(result) {
 /**
  * Run the full release pipeline.
  */
-export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck, skipTechDocsCheck, skipCoverageCheck, allowSubToolDrift }) {
+export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck, skipTechDocsCheck, skipCoverageCheck, allowSubToolDrift, noDeployPublic }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, level);
@@ -2288,6 +2361,29 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }) + '\n');
   } catch {}
 
+  // 12. deploy-public: sync private -> public mirror (Phase 6)
+  // Runs at the end of every stable release unless --no-deploy-public is set
+  // or the repo has no deploy-public.sh script. Skips silently for non-
+  // -private repos (no public mirror to sync).
+  {
+    const dp = runDeployPublic(repoPath, { skip: noDeployPublic });
+    if (dp.skipped) {
+      if (dp.reason === 'flag') {
+        console.log(`  - deploy-public: skipped (--no-deploy-public)`);
+      } else if (dp.reason === 'no-script') {
+        console.log(`  - deploy-public: skipped (no tools/deploy-public/deploy-public.sh)`);
+      } else if (dp.reason === 'not-private-repo') {
+        console.log(`  - deploy-public: skipped (origin is not a -private repo)`);
+      }
+    } else if (dp.ok) {
+      console.log(`  \u2713 deploy-public: synced to ${dp.publicRepo}`);
+    } else {
+      console.log(`  \u2717 deploy-public failed for ${dp.publicRepo}`);
+      if (dp.detail) console.log(`    ${dp.detail.split('\n')[0]}`);
+      console.log(`    Manual recovery: bash tools/deploy-public/deploy-public.sh ${repoPath} ${dp.publicRepo}`);
+    }
+  }
+
   console.log('');
   console.log(`  Done. ${repoName} v${newVersion} released.`);
   console.log('');
@@ -2306,7 +2402,7 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
  * No deploy-public. No code sync. No CHANGELOG gate. No product docs gate.
  * Lightweight: bump version, npm publish with tag, optional GitHub prerelease.
  */
-export async function releasePrerelease({ repoPath, track, notes, dryRun, noPublish, publishReleaseNotes, skipWorktreeCheck, allowSubToolDrift }) {
+export async function releasePrerelease({ repoPath, track, notes, dryRun, noPublish, publishReleaseNotes, skipWorktreeCheck, allowSubToolDrift, noDeployPublic }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpPrerelease(currentVersion, track);
@@ -2427,6 +2523,30 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
     for (const r of distResults) {
       const icon = r.status === 'ok' ? '\u2713' : '\u2717';
       console.log(`    ${icon} ${r.target}: ${r.detail}`);
+    }
+  }
+
+  // deploy-public: sync private -> public mirror (Phase 6)
+  // Prerelease tracks (alpha/beta) also run deploy-public so the public
+  // mirror stays current. Flagged in the bridge master plan and the
+  // release-pipeline master plan: forgetting deploy-public left the public
+  // repo stale across multiple days of alpha releases.
+  {
+    const dp = runDeployPublic(repoPath, { skip: noDeployPublic });
+    if (dp.skipped) {
+      if (dp.reason === 'flag') {
+        console.log(`  - deploy-public: skipped (--no-deploy-public)`);
+      } else if (dp.reason === 'no-script') {
+        console.log(`  - deploy-public: skipped (no deploy-public.sh)`);
+      } else if (dp.reason === 'not-private-repo') {
+        console.log(`  - deploy-public: skipped (origin is not a -private repo)`);
+      }
+    } else if (dp.ok) {
+      console.log(`  \u2713 deploy-public: synced to ${dp.publicRepo}`);
+    } else {
+      console.log(`  \u2717 deploy-public failed for ${dp.publicRepo}`);
+      if (dp.detail) console.log(`    ${dp.detail.split('\n')[0]}`);
+      console.log(`    Manual recovery: bash tools/deploy-public/deploy-public.sh ${repoPath} ${dp.publicRepo}`);
     }
   }
 

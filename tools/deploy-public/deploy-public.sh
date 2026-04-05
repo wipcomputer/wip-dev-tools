@@ -106,11 +106,26 @@ rsync -a \
 
 cd "$TMPDIR/public"
 
-# Check if there are changes
+# Check if there are code changes to sync. If not, skip the code-sync
+# path (PR creation, merge, branch cleanup) but STILL fall through to
+# the npm publish step below, because sub-tool versions can bump in
+# the private repo without any file changes reaching public in a given
+# run (e.g., when code was already synced in a prior deploy but the
+# sub-tool was not published yet). The classify_npm_publish_error
+# helper turns "already at current version" into a no-op log line, so
+# running the publish loop on unchanged sub-tools is cheap.
+NO_CODE_CHANGES=false
 if git diff --quiet HEAD -- 2>/dev/null && git diff --cached --quiet HEAD -- 2>/dev/null && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
-  echo "No changes to deploy."
-  exit 0
+  echo "No code changes to sync; will still verify sub-tool npm publish state."
+  NO_CODE_CHANGES=true
 fi
+
+PR_URL="(no code changes, sub-tool publish only)"
+
+# Code-sync path: only run when there are actually changes. If NO_CODE_CHANGES
+# is true, skip PR creation / merge / branch cleanup entirely and fall through
+# to the npm publish step so sub-tool version bumps still make it to npm.
+if [[ "$NO_CODE_CHANGES" != "true" ]]; then
 
 # Harness ID for branch prefix. Set HARNESS_ID env var, or auto-detect from private repo path.
 if [[ -z "${HARNESS_ID:-}" ]]; then
@@ -165,6 +180,8 @@ else
 
   echo "Code synced via PR: $PR_URL"
 fi
+
+fi # end NO_CODE_CHANGES code-sync guard
 
 # ── Sync release to public repo ──
 # If the private repo has a version tag, create a matching release on the public repo.

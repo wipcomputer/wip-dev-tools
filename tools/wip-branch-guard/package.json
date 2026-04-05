@@ -1,7 +1,7 @@
 {
   "name": "@wipcomputer/wip-branch-guard",
-  "version": "1.9.72",
-  "description": "PreToolUse hook that blocks all writes on main branch. Forces agents to work on branches or worktrees.",
+  "version": "1.9.73",
+  "description": "Branch guard with PreToolUse blocking (main branch write protection) and SessionStart warning (main-CWD detection after compaction).",
   "type": "module",
   "scripts": {
     "test": "bash test.sh"
@@ -11,11 +11,17 @@
     "wip-branch-guard": "guard.mjs"
   },
   "claudeCode": {
-    "hook": {
-      "event": "PreToolUse",
-      "matcher": "Write|Edit|NotebookEdit|Bash",
-      "timeout": 5
-    }
+    "hooks": [
+      {
+        "event": "PreToolUse",
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "timeout": 5
+      },
+      {
+        "event": "SessionStart",
+        "timeout": 5
+      }
+    ]
   },
   "license": "MIT"
 }

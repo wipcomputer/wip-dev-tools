@@ -227,10 +227,44 @@ if [[ -n "${VERSION:-}" ]]; then
     if [[ -n "$NPM_TOKEN" ]]; then
       cd "$NPM_TMPDIR/public"
 
+      # Helper: classify an npm publish failure and print a real message.
+      # Distinguishes the "already published" no-op case from real errors so
+      # the output is not buried in 10+ misleading "non-fatal" lines per run.
+      # Related: ai/product/bugs/release-pipeline/2026-04-05--cc-mini--release-pipeline-master-plan.md Phase 7
+      classify_npm_publish_error() {
+        local pkg_name="$1"
+        local err_text="$2"
+        if [[ "$err_text" == *"previously published"* || "$err_text" == *"cannot publish over"* ]]; then
+          echo "  - $pkg_name: already at current version, skipped"
+        elif [[ "$err_text" == *"ENEEDAUTH"* || "$err_text" == *"need auth"* ]]; then
+          echo "  ✗ $pkg_name: auth failed (token missing or invalid)"
+          echo "    ${err_text##*$'\n'}"
+        elif [[ "$err_text" == *"ENETWORK"* || "$err_text" == *"ECONNREFUSED"* ]]; then
+          echo "  ✗ $pkg_name: network error"
+          echo "    ${err_text##*$'\n'}"
+        elif [[ -n "$err_text" ]]; then
+          # Unknown failure: print the first real error line (skip stack dumps)
+          local first_err
+          first_err=$(echo "$err_text" | grep -E '^npm (error|err!|ERR!) ' | head -1)
+          if [[ -z "$first_err" ]]; then
+            first_err=$(echo "$err_text" | head -1)
+          fi
+          echo "  ✗ $pkg_name: publish failed"
+          echo "    ${first_err}"
+        else
+          echo "  ✗ $pkg_name: publish failed (no error text captured)"
+        fi
+      }
+
       # Publish root package (if not private)
       if [[ "$IS_PRIVATE" != "true" ]]; then
         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-        npm publish --access public 2>/dev/null && echo "  ✓ Published root package to npm" || echo "  ✗ Root npm publish failed (non-fatal)"
+        ROOT_PUBLISH_ERR=$(npm publish --access public 2>&1)
+        if [[ $? -eq 0 ]]; then
+          echo "  ✓ Published root package to npm"
+        else
+          classify_npm_publish_error "root" "$ROOT_PUBLISH_ERR"
+        fi
         rm -f .npmrc
       else
         echo "  - Root package is private. Skipping root npm publish."
@@ -244,7 +278,12 @@ if [[ -n "${VERSION:-}" ]]; then
             if [[ "$TOOL_PRIVATE" != "true" ]]; then
               TOOL_NAME=$(node -p "require('./${TOOL_DIR}package.json').name" 2>/dev/null)
               echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "${TOOL_DIR}.npmrc"
-              (cd "$TOOL_DIR" && npm publish --access public 2>/dev/null) && echo "  ✓ Published $TOOL_NAME to npm" || echo "  ✗ npm publish failed for $TOOL_NAME (non-fatal)"
+              TOOL_PUBLISH_ERR=$(cd "$TOOL_DIR" && npm publish --access public 2>&1)
+              if [[ $? -eq 0 ]]; then
+                echo "  ✓ Published $TOOL_NAME to npm"
+              else
+                classify_npm_publish_error "$TOOL_NAME" "$TOOL_PUBLISH_ERR"
+              fi
               rm -f "${TOOL_DIR}.npmrc"
             fi
           fi

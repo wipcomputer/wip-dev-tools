@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.71-alpha.12 (2026-04-05)
+
+Guard 1.9.74: temp-dir writes allowed, escape-hatch audit complete (Phase 12)
+
 ## 1.9.71-alpha.11 (2026-04-05)
 
 # v1.9.71-alpha.11

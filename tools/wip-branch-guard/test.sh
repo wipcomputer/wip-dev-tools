@@ -112,6 +112,17 @@ test_case "ldm install" allow Bash "ldm install"
 test_case "mkdir .worktrees" allow Bash "mkdir -p .worktrees/repo--branch"
 
 echo ""
+echo "--- Temp directory operations (Phase 12 audit) ---"
+test_case "cp to /tmp" allow Bash "cp source.txt /tmp/test.txt"
+test_case "mv to /tmp" allow Bash "mv source.txt /tmp/test.txt"
+test_case "rm in /tmp" allow Bash "rm /tmp/test.txt"
+test_case "mkdir in /tmp" allow Bash "mkdir -p /tmp/test-dir"
+test_case "touch in /tmp" allow Bash "touch /tmp/test-file"
+test_case "redirect to /tmp" allow Bash "echo hello > /tmp/test.txt"
+test_case "tee to /tmp" allow Bash "cat source | tee /tmp/test.txt"
+test_case "cp to /var/tmp" allow Bash "cp source /var/tmp/test"
+
+echo ""
 echo "--- Plan files (should ALLOW Write/Edit) ---"
 test_case "Edit plan file" allow Edit "$HOME/.claude/plans/my-plan.md"
 

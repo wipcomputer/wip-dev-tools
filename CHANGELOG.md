@@ -1,8 +1,27 @@
 # Changelog
 
-## 1.9.71-alpha.5 (2026-04-04)
+## 1.9.71-alpha.6 (2026-04-05)
 
-wip-branch-guard: bump sub-tool to 1.9.71 so ldm install redeploys the updated guard from #314 and #315
+Guard 1.9.72: allow git stash push on main to unblock native untracked-file escape hatch
+
+## 1.9.71-alpha.5 (2026-04-05)
+
+Guard 1.9.72: allow git stash push on main to unblock native untracked-file escape hatch
+
+## 1.9.72-alpha.1 (2026-04-05)
+
+### wip-branch-guard
+
+Allow `git stash push` / `git stash save` / bare `git stash` on main. Stashing is non-destructive (drop/pop/clear remain blocked in DESTRUCTIVE_PATTERNS). This closes the loop where an untracked file in main's working tree blocks `git pull` and every clearing command (rm, mv, git stash, git clean, git reset) is also blocked, leaving no native escape hatch. Agents and humans lost hours to this.
+
+Error message now points at the stash workaround explicitly so future sessions don't loop:
+
+```
+STUCK clearing an untracked file before git pull? Use stash (non-destructive):
+  git stash push -u -- <path>
+  git pull
+  git stash list
+```
 
 ## 1.9.71-alpha.4 (2026-04-04)
 

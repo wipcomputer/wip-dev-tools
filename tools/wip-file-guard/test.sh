@@ -130,12 +130,29 @@ check "Allow Edit removing 10 lines from harness memory (lenient limit)" \
   '{"tool_name":"Edit","tool_input":{"file_path":"/Users/lesa/.claude/projects/-foo/memory/test.md","old_string":"a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl","new_string":"x\ny"}}' \
   "allow"
 
-check "Block Write to SOUL.md even under .claude/projects/memory/" \
+check "Allow Write to SOUL.md under .claude/projects/memory/ (shared state path)" \
   '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.claude/projects/foo/memory/SOUL.md","content":"new"}}' \
-  "block"
+  "allow"
 
-check "Block Write to SHARED-CONTEXT.md even under .claude path" \
+check "Allow Write to SHARED-CONTEXT.md under .claude path (shared state path)" \
   '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.claude/projects/foo/memory/SHARED-CONTEXT.md","content":"new"}}' \
+  "allow"
+
+# OpenClaw workspace shared state
+check "Allow Write to TOOLS.md under .openclaw/workspace/ (shared state)" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.openclaw/workspace/TOOLS.md","content":"new"}}' \
+  "allow"
+
+check "Allow Write to MEMORY.md under .openclaw/workspace/ (shared state)" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.openclaw/workspace/MEMORY.md","content":"new"}}' \
+  "allow"
+
+check "Allow Write to any file under .openclaw/workspace/ (shared state)" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/Users/lesa/.openclaw/workspace/new-file.md","content":"new"}}' \
+  "allow"
+
+check "Block Write to TOOLS.md outside shared state paths" \
+  '{"tool_name":"Write","tool_input":{"file_path":"/some/repo/TOOLS.md","content":"new"}}' \
   "block"
 
 echo ""

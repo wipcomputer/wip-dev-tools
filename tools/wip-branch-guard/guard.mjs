@@ -581,6 +581,7 @@ This is a warning, not a block. If you need to create it here, retry.`);
   // These are not code. They're shared context between agents.
   const SHARED_STATE_PATTERNS = [
     /CLAUDE\.md$/,
+    /\.openclaw\/workspace\//,            // OpenClaw agent workspace (live shared state, not code)
     /workspace\/SHARED-CONTEXT\.md$/,
     /workspace\/TOOLS\.md$/,
     /workspace\/MEMORY\.md$/,

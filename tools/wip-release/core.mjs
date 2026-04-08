@@ -1740,9 +1740,17 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }
   }
 
-  // 0. License compliance gate
+  // 0. License compliance gate (MANDATORY: blocks release if .license-guard.json missing)
   const configPath = join(repoPath, '.license-guard.json');
-  if (existsSync(configPath)) {
+  if (!existsSync(configPath)) {
+    console.log(`  ✗ .license-guard.json not found.`);
+    console.log(`    Every repo must have .license-guard.json to release.`);
+    console.log(`    Run: wip-repo-init   (scaffolds ai/, .license-guard.json, CLA.md)`);
+    console.log(`    Or:  wip-license-guard init`);
+    console.log('');
+    return { currentVersion, newVersion, dryRun: false, failed: true };
+  }
+  {
     const config = JSON.parse(readFileSync(configPath, 'utf8'));
     const licenseIssues = [];
 
@@ -1768,6 +1776,24 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       const readme = readFileSync(readmePath, 'utf8');
       if (!readme.includes('## License')) licenseIssues.push('README.md missing ## License section');
       if (config.license === 'MIT+AGPL' && !readme.includes('AGPL')) licenseIssues.push('README.md License section missing AGPL reference');
+    }
+
+    // .npmignore must exclude ai/ if repo has ai/ directory
+    const aiDir = join(repoPath, 'ai');
+    if (existsSync(aiDir)) {
+      const npmignorePath = join(repoPath, '.npmignore');
+      const pkgJson = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
+      const hasFilesWhitelist = Array.isArray(pkgJson.files);
+      if (!hasFilesWhitelist) {
+        if (!existsSync(npmignorePath)) {
+          licenseIssues.push('.npmignore is missing (ai/ directory exists and could leak to npm)');
+        } else {
+          const npmignore = readFileSync(npmignorePath, 'utf8');
+          if (!npmignore.includes('ai/')) {
+            licenseIssues.push('.npmignore does not exclude ai/ (plans and bugs could leak to npm)');
+          }
+        }
+      }
     }
 
     if (licenseIssues.length > 0) {
@@ -2426,6 +2452,66 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
     }
   }
 
+  // License compliance gate (MANDATORY: blocks release if .license-guard.json missing)
+  {
+    const configPath = join(repoPath, '.license-guard.json');
+    if (!existsSync(configPath)) {
+      console.log(`  \u2717 .license-guard.json not found.`);
+      console.log(`    Every repo must have .license-guard.json to release.`);
+      console.log(`    Run: wip-repo-init   (scaffolds ai/, .license-guard.json, CLA.md)`);
+      console.log(`    Or:  wip-license-guard init`);
+      console.log('');
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+    const config = JSON.parse(readFileSync(configPath, 'utf8'));
+    const licenseIssues = [];
+    const licensePath = join(repoPath, 'LICENSE');
+    if (!existsSync(licensePath)) {
+      licenseIssues.push('LICENSE file is missing');
+    } else {
+      const licenseText = readFileSync(licensePath, 'utf8');
+      if (!licenseText.includes(config.copyright)) {
+        licenseIssues.push(`LICENSE copyright does not match "${config.copyright}"`);
+      }
+      if (config.license === 'MIT+AGPL' && !licenseText.includes('AGPL') && !licenseText.includes('GNU Affero')) {
+        licenseIssues.push('LICENSE is MIT-only but config requires MIT+AGPL');
+      }
+    }
+    if (!existsSync(join(repoPath, 'CLA.md'))) {
+      licenseIssues.push('CLA.md is missing');
+    }
+    const readmePath = join(repoPath, 'README.md');
+    if (existsSync(readmePath)) {
+      const readme = readFileSync(readmePath, 'utf8');
+      if (!readme.includes('## License')) licenseIssues.push('README.md missing ## License section');
+      if (config.license === 'MIT+AGPL' && !readme.includes('AGPL')) licenseIssues.push('README.md License section missing AGPL reference');
+    }
+    const aiDir = join(repoPath, 'ai');
+    if (existsSync(aiDir)) {
+      const npmignorePath = join(repoPath, '.npmignore');
+      const pkgJson = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
+      const hasFilesWhitelist = Array.isArray(pkgJson.files);
+      if (!hasFilesWhitelist) {
+        if (!existsSync(npmignorePath)) {
+          licenseIssues.push('.npmignore is missing (ai/ directory exists and could leak to npm)');
+        } else {
+          const npmignore = readFileSync(npmignorePath, 'utf8');
+          if (!npmignore.includes('ai/')) {
+            licenseIssues.push('.npmignore does not exclude ai/ (plans and bugs could leak to npm)');
+          }
+        }
+      }
+    }
+    if (licenseIssues.length > 0) {
+      console.log(`  \u2717 License compliance failed:`);
+      for (const issue of licenseIssues) console.log(`    - ${issue}`);
+      console.log(`\n  Run \`wip-license-guard check --fix\` to auto-repair, then try again.`);
+      console.log('');
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+    console.log(`  \u2713 License compliance passed`);
+  }
+
   if (dryRun) {
     console.log(`  [dry run] Would bump package.json to ${newVersion}`);
     if (!noPublish) {
@@ -2590,9 +2676,17 @@ export async function releaseHotfix({ repoPath, notes, notesSource, dryRun, noPu
     }
   }
 
-  // License compliance gate
-  const configPath = join(repoPath, '.license-guard.json');
-  if (existsSync(configPath)) {
+  // License compliance gate (MANDATORY: blocks release if .license-guard.json missing)
+  {
+    const configPath = join(repoPath, '.license-guard.json');
+    if (!existsSync(configPath)) {
+      console.log(`  \u2717 .license-guard.json not found.`);
+      console.log(`    Every repo must have .license-guard.json to release.`);
+      console.log(`    Run: wip-repo-init   (scaffolds ai/, .license-guard.json, CLA.md)`);
+      console.log(`    Or:  wip-license-guard init`);
+      console.log('');
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
     const config = JSON.parse(readFileSync(configPath, 'utf8'));
     const licenseIssues = [];
     const licensePath = join(repoPath, 'LICENSE');
@@ -2603,6 +2697,9 @@ export async function releaseHotfix({ repoPath, notes, notesSource, dryRun, noPu
       if (!licenseText.includes(config.copyright)) {
         licenseIssues.push(`LICENSE copyright does not match "${config.copyright}"`);
       }
+    }
+    if (!existsSync(join(repoPath, 'CLA.md'))) {
+      licenseIssues.push('CLA.md is missing');
     }
     if (licenseIssues.length > 0) {
       console.log(`  \u2717 License compliance failed:`);

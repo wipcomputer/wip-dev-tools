@@ -16,8 +16,9 @@ File Guard is a technical guardrail. It doesn't ask the agent to be careful. It 
 
 Two rules:
 
-1. **Write is blocked** on protected files. Always. Use Edit instead.
-2. **Edit is blocked** when it removes more than 2 net lines from a protected file.
+1. **Write is blocked** on protected files outside shared state paths. Use Edit instead.
+2. **Edit is blocked** when it removes more than 2 net lines from a protected file (20 for shared state).
+3. **Shared state paths** (e.g. `~/.openclaw/workspace/`) are always writable. These are live agent workspace files, not code.
 
 The agent gets a deny message explaining what happened and telling it to re-read the file and add content instead of replacing it.
 
@@ -89,8 +90,9 @@ PASS: Allow Edit with small removal (2 lines)
 PASS: Block Edit with 4 line removal from SOUL.md
 PASS: Block Write to IDENTITY.md
 PASS: Block Write to TOOLS.md
+PASS: Allow Write to ~/.openclaw/workspace/TOOLS.md (shared state)
 
-Results: 10 passed, 0 failed
+Results: 11 passed, 0 failed
 ```
 
 ## Why This Exists

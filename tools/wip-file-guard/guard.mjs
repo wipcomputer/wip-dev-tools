@@ -44,6 +44,7 @@ const SHARED_STATE_FILES = new Set([
 
 // Daily logs and workspace memory: allow creation and larger edits
 const SHARED_STATE_PATHS = [
+  /\.openclaw\/workspace\//,                   // OpenClaw agent workspace (live shared state, not code)
   /workspace\/memory\/\d{4}-\d{2}-\d{2}\.md$/,
   /\.ldm\/agents\/.*\/memory\/daily\/.*\.md$/,
   /\.ldm\/memory\/daily\/.*\.md$/,
@@ -118,17 +119,20 @@ async function main() {
   }
 
   // Block Write on protected files
-  // Exact matches: always block Write (use Edit instead)
+  // Path-based shared state (workspace, harness memory, daily logs): always allow Write
+  // Exact matches outside shared state paths: block Write (use Edit instead)
   // Pattern matches: only block if file already exists (allow creating new files)
-  // Shared state paths (harness memory, daily logs): allow Write freely
   if (toolName === 'Write') {
+    // Path-based shared state gets Write access (workspace files, harness memory).
+    // Checked before exact-match so workspace TOOLS.md/MEMORY.md are writable.
+    // Name-based shared state (SHARED_STATE_FILES) still goes through exact-match
+    // to prevent accidental overwrites of SHARED-CONTEXT.md outside known paths.
+    if (SHARED_STATE_PATHS.some(p => p.test(filePath))) {
+      process.exit(0);
+    }
     const isExactMatch = PROTECTED.has(fileName);
     if (isExactMatch) {
       deny(`BLOCKED: Write tool on ${match} is not allowed. Use Edit to make specific changes. Never overwrite protected files.`);
-      process.exit(0);
-    }
-    // Shared state paths get Write access (harness manages its own memory files)
-    if (isSharedState(filePath)) {
       process.exit(0);
     }
     // Other pattern matches: block if file exists, allow creation of new files

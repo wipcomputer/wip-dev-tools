@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.71-alpha.14 (2026-04-08)
+
+WAVE 0: mandatory license gate in all release paths
+
 ## 1.9.71-alpha.12 (2026-04-05)
 
 Guard 1.9.74: temp-dir writes allowed, escape-hatch audit complete (Phase 12)

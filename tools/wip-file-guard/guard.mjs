@@ -132,6 +132,12 @@ async function main() {
     }
     const isExactMatch = PROTECTED.has(fileName);
     if (isExactMatch) {
+      // Allow creating NEW protected files in worktrees (file doesn't exist yet).
+      // Still block overwriting existing protected files in worktrees.
+      const inWorktree = filePath.includes('/.worktrees/') || filePath.includes('/_worktrees/');
+      if (inWorktree && !existsSync(filePath)) {
+        process.exit(0);
+      }
       deny(`BLOCKED: Write tool on ${match} is not allowed. Use Edit to make specific changes. Never overwrite protected files.`);
       process.exit(0);
     }

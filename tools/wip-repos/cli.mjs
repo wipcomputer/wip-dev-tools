@@ -11,7 +11,7 @@
  *   tree    - Generate directory tree from manifest
  */
 
-import { check, planSync, executeSync, addRepo, moveRepo, generateReadmeTree, loadManifest } from './core.mjs';
+import { check, planSync, executeSync, addRepo, moveRepo, generateReadmeTree, loadManifest, checkCompliance, fixCompliance, findUnmanifested } from './core.mjs';
 import { runClaude } from './claude.mjs';
 import { resolve, dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -31,16 +31,28 @@ function usage() {
   console.log(`wip-repos ... repo manifest reconciler
 
 Usage:
-  wip-repos check [--manifest path] [--root path]
-  wip-repos sync  [--manifest path] [--root path] [--dry-run]
+  wip-repos check      [--manifest path] [--root path]
+  wip-repos sync       [--manifest path] [--root path] [--dry-run]
+  wip-repos compliance [--manifest path] [--root path] [--fix]
+  wip-repos watchdog   [--manifest path] [--root path]
   wip-repos add <path> --remote <org/repo> [--category cat] [--description desc]
   wip-repos move <path> --to <new-path>
-  wip-repos tree  [--manifest path]
+  wip-repos tree       [--manifest path]
+
+Commands:
+  check        Diff filesystem against manifest, flag drift
+  sync         Move local folders to match the manifest
+  compliance   Check all repos for .license-guard.json, LICENSE, CLA.md, .npmignore
+  watchdog     Find repos on disk that are not in the manifest
+  add          Add a repo to the manifest
+  move         Move a repo to a different category in the manifest
+  tree         Generate directory tree from manifest
 
 Options:
   --manifest   Path to repos-manifest.json (default: ./repos-manifest.json)
   --root       Path to repos root directory (default: directory containing manifest)
   --dry-run    Show what would happen without making changes
+  --fix        Create missing compliance files (with compliance command)
   --json       Output as JSON`);
 }
 
@@ -171,6 +183,73 @@ try {
     case 'tree': {
       const tree = generateReadmeTree(manifestPath);
       console.log(tree);
+      break;
+    }
+
+    case 'compliance': {
+      const results = checkCompliance(manifestPath, reposRoot);
+      const failing = results.filter(r => !r.clean);
+      const passing = results.filter(r => r.clean);
+
+      if (jsonOutput) {
+        console.log(JSON.stringify(results, null, 2));
+        break;
+      }
+
+      console.log(`Compliance check: ${results.length} repos scanned\n`);
+
+      if (failing.length > 0) {
+        console.log(`FAILING (${failing.length}):`);
+        for (const r of failing) {
+          console.log(`  ✗ ${r.repoPath}`);
+          for (const issue of r.issues) {
+            console.log(`    - ${issue}`);
+          }
+        }
+        console.log();
+      }
+
+      if (passing.length > 0) {
+        console.log(`PASSING (${passing.length}):`);
+        for (const r of passing) {
+          console.log(`  ✓ ${r.repoPath}`);
+        }
+        console.log();
+      }
+
+      if (failing.length > 0 && hasFlag('--fix')) {
+        console.log('Fixing...\n');
+        for (const r of failing) {
+          const created = fixCompliance(r.fullPath);
+          if (created.length > 0) {
+            console.log(`  ${r.repoPath}: created ${created.join(', ')}`);
+          }
+        }
+        console.log('\nFiles created. You still need to commit and push each repo.');
+      } else if (failing.length > 0) {
+        console.log('Run with --fix to create missing files.');
+      }
+
+      if (failing.length > 0) process.exit(1);
+      break;
+    }
+
+    case 'watchdog': {
+      const unmanifested = findUnmanifested(manifestPath, reposRoot);
+      if (jsonOutput) {
+        console.log(JSON.stringify(unmanifested, null, 2));
+        break;
+      }
+      if (unmanifested.length === 0) {
+        console.log('All repos on disk are in the manifest.');
+      } else {
+        console.log(`Repos on disk but NOT in manifest (${unmanifested.length}):`);
+        for (const p of unmanifested) {
+          console.log(`  ! ${p}`);
+        }
+        console.log('\nAdd them with: wip-repos add <path> --remote <org/repo>');
+        process.exit(1);
+      }
       break;
     }
 

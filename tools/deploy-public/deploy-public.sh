@@ -49,6 +49,18 @@ if [[ "$PUBLIC_REPO" == *"-private"* ]]; then
   exit 1
 fi
 
+# ── Safety: never deploy alpha to public ──
+# Alpha is dev-only. Beta and stable go to public.
+CURRENT_VERSION=$(cd "$PRIVATE_REPO" && node -p "require('./package.json').version" 2>/dev/null || echo "")
+if [[ "$CURRENT_VERSION" == *"-alpha"* ]]; then
+  echo "BLOCKED: Cannot deploy alpha version ($CURRENT_VERSION) to public repo."
+  echo "Alpha is dev-only. Use beta or stable for public deployment."
+  echo ""
+  echo "  wip-release beta   ... publishes to public as prerelease"
+  echo "  wip-release patch  ... publishes to public as stable"
+  exit 1
+fi
+
 # Get the latest commit message from private repo
 COMMIT_MSG=$(cd "$PRIVATE_REPO" && git log -1 --pretty=format:"%s")
 COMMIT_HASH=$(cd "$PRIVATE_REPO" && git log -1 --pretty=format:"%h")

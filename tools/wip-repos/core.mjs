@@ -288,3 +288,119 @@ export function generateReadmeTree(manifestPath) {
   render(tree, '', false);
   return lines.join('\n');
 }
+
+// ── Compliance checking (Wave 3.3) ──────────────────────────────────
+
+const DEFAULT_LICENSE_GUARD = {
+  copyright: 'WIP Computer, Inc.',
+  license: 'MIT+AGPL',
+  spdx: 'MIT AND AGPL-3.0-or-later',
+};
+
+/**
+ * Check compliance of all repos in the manifest.
+ * Returns array of { repoPath, fullPath, issues[], hasPackageJson }
+ */
+export function checkCompliance(manifestPath, reposRoot) {
+  const manifest = loadManifest(manifestPath);
+  const results = [];
+
+  for (const [repoPath, info] of Object.entries(manifest.repos)) {
+    const fullPath = join(reposRoot, repoPath);
+    if (!existsSync(fullPath)) continue;
+    if (!existsSync(join(fullPath, 'package.json'))) continue;
+
+    // Skip _to-privatize, _sort, _sunsetted, _trash
+    if (repoPath.includes('_to-privatize') || repoPath.includes('_sort') ||
+        repoPath.includes('_sunsetted') || repoPath.includes('_trash')) continue;
+
+    const issues = [];
+
+    if (!existsSync(join(fullPath, '.license-guard.json'))) {
+      issues.push('missing .license-guard.json');
+    }
+    if (!existsSync(join(fullPath, 'LICENSE'))) {
+      issues.push('missing LICENSE');
+    } else {
+      const lic = readFileSync(join(fullPath, 'LICENSE'), 'utf8');
+      if (!lic.includes('WIP Computer')) issues.push('LICENSE missing copyright');
+      if (!lic.includes('AGPL') && !lic.includes('GNU Affero')) issues.push('LICENSE missing AGPL');
+    }
+    if (!existsSync(join(fullPath, 'CLA.md'))) {
+      issues.push('missing CLA.md');
+    }
+    if (existsSync(join(fullPath, 'ai')) && !existsSync(join(fullPath, '.npmignore'))) {
+      issues.push('missing .npmignore (has ai/ directory)');
+    } else if (existsSync(join(fullPath, 'ai')) && existsSync(join(fullPath, '.npmignore'))) {
+      const npmignore = readFileSync(join(fullPath, '.npmignore'), 'utf8');
+      if (!npmignore.includes('ai/')) issues.push('.npmignore does not exclude ai/');
+    }
+
+    results.push({ repoPath, fullPath, issues, clean: issues.length === 0 });
+  }
+
+  return results;
+}
+
+/**
+ * Fix compliance issues for a single repo.
+ * Creates missing files with WIP Computer defaults.
+ * Returns array of files created.
+ */
+export function fixCompliance(fullPath) {
+  const created = [];
+
+  // .license-guard.json
+  if (!existsSync(join(fullPath, '.license-guard.json'))) {
+    writeFileSync(
+      join(fullPath, '.license-guard.json'),
+      JSON.stringify(DEFAULT_LICENSE_GUARD, null, 2) + '\n',
+    );
+    created.push('.license-guard.json');
+  }
+
+  // CLA.md
+  if (!existsSync(join(fullPath, 'CLA.md'))) {
+    writeFileSync(join(fullPath, 'CLA.md'), [
+      '# Contributor License Agreement',
+      '',
+      'By submitting a pull request to this repository, you agree that:',
+      '',
+      '1. Your contribution is original work or you have the right to submit it.',
+      '2. You grant WIP Computer, Inc. a perpetual, worldwide, non-exclusive,',
+      '   royalty-free license to use, modify, and distribute your contribution',
+      '   under the terms of this project\'s license.',
+      '3. You understand your contribution will be publicly available.',
+      '',
+      'This CLA is required for all contributions. By opening a PR, you accept these terms.',
+      '',
+    ].join('\n'));
+    created.push('CLA.md');
+  }
+
+  // .npmignore (if ai/ exists)
+  if (existsSync(join(fullPath, 'ai'))) {
+    const npmignorePath = join(fullPath, '.npmignore');
+    if (!existsSync(npmignorePath)) {
+      writeFileSync(npmignorePath, 'ai/\n.claude/\n.worktrees/\n.DS_Store\nCLAUDE.md\n');
+      created.push('.npmignore');
+    } else {
+      const content = readFileSync(npmignorePath, 'utf8');
+      if (!content.includes('ai/')) {
+        writeFileSync(npmignorePath, content.trimEnd() + '\nai/\n');
+        created.push('.npmignore (updated)');
+      }
+    }
+  }
+
+  return created;
+}
+
+/**
+ * Find repos on disk that are NOT in the manifest.
+ * This is the watchdog function for the daily audit.
+ */
+export function findUnmanifested(manifestPath, reposRoot) {
+  const result = check(manifestPath, reposRoot);
+  return result.onDiskOnly;
+}

@@ -5,7 +5,7 @@
  * Zero dependencies.
  */
 
-import { execSync, execFileSync } from 'node:child_process';
+import { execSync, execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, renameSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 
@@ -222,14 +222,50 @@ function gitCommitAndTag(repoPath, newVersion, notes) {
 // ── Publish ─────────────────────────────────────────────────────────
 
 /**
+ * Run `npm publish` and surface captured stderr in thrown errors.
+ *
+ * Why not execFileSync(..., stdio: 'inherit')?
+ *   execFileSync with stdio:'inherit' sends npm's stderr directly to the
+ *   parent tty. When the call throws, the error's .message is just
+ *   "Command failed: npm publish ..." ... it does NOT contain npm's stderr.
+ *   Callers trying to detect idempotent failures (e.g. "cannot publish over
+ *   the previously published versions") by substring-matching e.message
+ *   never matched and logged every re-publish as a real failure instead of
+ *   the intended silent swallow.
+ *
+ * Fix: pipe stderr (and stdout), echo captured bytes to the real tty for
+ * visibility, then include stderr in the thrown error's .message AND as
+ * .stderr so callers can match reliably. Stdout is inherited so live
+ * progress still prints.
+ */
+function runNpmPublish(args, cwd) {
+  // Stdout inherits for live progress; stderr piped so we can capture the
+  // "cannot publish over..." text that callers substring-match to detect
+  // idempotent re-publishes.
+  const res = spawnSync('npm', args, { cwd, encoding: 'utf8', stdio: ['inherit', 'inherit', 'pipe'] });
+  const stderr = res.stderr || '';
+  if (stderr) process.stderr.write(stderr);
+  if (res.status !== 0 || res.error) {
+    // Redact the auth token from the reproduced command for logs.
+    const safeArgs = args.map(a => a.replace(/_authToken=[^&\s]+/, '_authToken=***'));
+    const msg = `Command failed: npm ${safeArgs.join(' ')}${stderr ? '\n' + stderr.trim() : ''}`;
+    const err = new Error(msg);
+    err.stderr = stderr;
+    err.status = res.status;
+    throw err;
+  }
+}
+
+/**
  * Publish to npm via 1Password for auth.
+ * Default tag (latest).
  */
 export function publishNpm(repoPath) {
   const token = getNpmToken();
-  execFileSync('npm', [
+  runNpmPublish([
     'publish', '--access', 'public',
-    `--//registry.npmjs.org/:_authToken=${token}`
-  ], { cwd: repoPath, stdio: 'inherit' });
+    `--//registry.npmjs.org/:_authToken=${token}`,
+  ], repoPath);
 }
 
 /**
@@ -237,11 +273,11 @@ export function publishNpm(repoPath) {
  */
 export function publishNpmWithTag(repoPath, tag) {
   const token = getNpmToken();
-  execFileSync('npm', [
+  runNpmPublish([
     'publish', '--access', 'public',
     '--tag', tag,
-    `--//registry.npmjs.org/:_authToken=${token}`
-  ], { cwd: repoPath, stdio: 'inherit' });
+    `--//registry.npmjs.org/:_authToken=${token}`,
+  ], repoPath);
 }
 
 /**
@@ -1408,6 +1444,67 @@ function enforceMainBranchGuard(repoPath, skipWorktreeCheck) {
  * Related: `ai/product/bugs/release-pipeline/2026-04-05--cc-mini--release-pipeline-master-plan.md`
  * Phase 8.
  */
+/**
+ * Phase 5: Auto-bump sub-tool patch versions when their files changed since last tag.
+ * Called before validateSubToolVersions so drift is fixed before validation runs.
+ * Returns the number of sub-tools bumped.
+ */
+function autoFixSubToolVersions(repoPath) {
+  const toolsDir = join(repoPath, 'tools');
+  if (!existsSync(toolsDir)) return 0;
+  let lastTag = null;
+  try {
+    lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'], {
+      cwd: repoPath, encoding: 'utf8'
+    }).trim();
+  } catch {
+    return 0;
+  }
+  if (!lastTag) return 0;
+
+  let bumped = 0;
+  let entries;
+  try {
+    entries = readdirSync(toolsDir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const subDir = `tools/${entry.name}`;
+    const subPkgPath = join(toolsDir, entry.name, 'package.json');
+    if (!existsSync(subPkgPath)) continue;
+    try {
+      const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD', '--', subDir], {
+        cwd: repoPath, encoding: 'utf8'
+      }).trim();
+      if (!diff) continue;
+      const subPkg = JSON.parse(readFileSync(subPkgPath, 'utf8'));
+      const currentSubVersion = subPkg.version;
+      let oldSubVersion = null;
+      try {
+        oldSubVersion = JSON.parse(
+          execFileSync('git', ['show', `${lastTag}:${subDir}/package.json`], {
+            cwd: repoPath, encoding: 'utf8'
+          })
+        ).version;
+      } catch {}
+      if (currentSubVersion === oldSubVersion) {
+        const parts = currentSubVersion.split('.');
+        parts[2] = String(Number(parts[2]) + 1);
+        const newSubVersion = parts.join('.');
+        subPkg.version = newSubVersion;
+        writeFileSync(subPkgPath, JSON.stringify(subPkg, null, 2) + '\n');
+        console.log(`  ✓ Auto-bumped ${entry.name}: ${currentSubVersion} -> ${newSubVersion}`);
+        bumped++;
+      }
+    } catch (err) {
+      console.log(`  ! Auto-bump failed for ${entry.name}: ${err.message}`);
+    }
+  }
+  return bumped;
+}
+
 function validateSubToolVersions(repoPath, allowSubToolDrift) {
   const toolsDir = join(repoPath, 'tools');
   if (!existsSync(toolsDir)) {
@@ -2083,6 +2180,14 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   writePackageVersion(repoPath, newVersion);
   console.log(`  ✓ package.json -> ${newVersion}`);
 
+  // 1.25. Auto-bump sub-tool versions (Phase 5: auto-fix before validation)
+  {
+    const autoBumped = autoFixSubToolVersions(repoPath);
+    if (autoBumped > 0) {
+      console.log(`  ✓ Auto-bumped ${autoBumped} sub-tool(s)`);
+    }
+  }
+
   // 1.5. Validate sub-tool version bumps (Phase 8: error by default)
   {
     const subToolResult = validateSubToolVersions(repoPath, allowSubToolDrift);
@@ -2112,11 +2217,66 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     console.log(`  ✓ Product docs synced to v${newVersion} (${docsUpdated} file(s))`);
   }
 
-  // 4. Git commit + tag
+  // Distribution results collector (#104)
+  const distResults = [];
+
+  // 4. npm publish BEFORE commit (Phase 3: true publish-before-commit)
+  // Files are bumped and staged but NOT committed. If npm fails, we just
+  // revert the file changes. No commit, no tag, no remote state to clean up.
+  if (!noPublish) {
+    try {
+      publishNpm(repoPath);
+      const pkg = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
+      distResults.push({ target: 'npm', status: 'ok', detail: `${pkg.name}@${newVersion}` });
+      console.log(`  ✓ Published to npm`);
+    } catch (e) {
+      console.log(`  ✗ npm publish failed: ${e.message}`);
+      console.log(`  Reverting file changes (no commit was made)...`);
+      try {
+        execSync('git checkout -- .', { cwd: repoPath, stdio: 'pipe' });
+        // Clean up any new files (like trashed release notes)
+        execSync('git clean -fd _trash/', { cwd: repoPath, stdio: 'pipe' });
+        console.log(`  ✓ Reverted. Working tree is clean. Fix the issue and try again.`);
+      } catch (revertErr) {
+        console.log(`  ✗ Revert failed: ${revertErr.message}`);
+        console.log(`  Manual cleanup: git checkout -- .`);
+      }
+      console.log('');
+      return { currentVersion, newVersion, dryRun: false, failed: true };
+    }
+
+    // Phase 5: Auto-publish changed sub-tools to npm
+    const toolsDir = join(repoPath, 'tools');
+    if (existsSync(toolsDir)) {
+      for (const tool of readdirSync(toolsDir)) {
+        const toolPath = join(toolsDir, tool);
+        const toolPkg = join(toolPath, 'package.json');
+        if (!existsSync(toolPkg)) continue;
+        const pkg = JSON.parse(readFileSync(toolPkg, 'utf8'));
+        if (!pkg.name || pkg.private) continue;
+        try {
+          publishNpm(toolPath);
+          distResults.push({ target: 'npm', status: 'ok', detail: `${pkg.name}@${pkg.version}` });
+          console.log(`  ✓ Published sub-tool: ${pkg.name}@${pkg.version}`);
+        } catch (e) {
+          // Sub-tool publish failure is non-fatal but loud (Phase 7)
+          const msg = e.message || '';
+          if (msg.includes('previously published') || msg.includes('cannot publish over')) {
+            // Already published at this version. Not an error.
+          } else {
+            distResults.push({ target: 'npm', status: 'failed', detail: `${pkg.name}: ${msg}` });
+            console.log(`  ✗ Sub-tool ${pkg.name} publish failed: ${msg}`);
+          }
+        }
+      }
+    }
+  }
+
+  // 5. Git commit + tag (AFTER npm publish succeeds)
   gitCommitAndTag(repoPath, newVersion, notes);
   console.log(`  ✓ Committed and tagged v${newVersion}`);
 
-  // 5. Push commit + tag (with auto-PR fallback on protected main, Phase 4)
+  // 5.5. Push commit + tag
   {
     const pushResult = pushReleaseWithAutoPr(repoPath, newVersion, level);
     if (pushResult.ok) {
@@ -2126,21 +2286,7 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }
   }
 
-  // Distribution results collector (#104)
-  const distResults = [];
-
   if (!noPublish) {
-    // 6. npm publish
-    try {
-      publishNpm(repoPath);
-      const pkg = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
-      distResults.push({ target: 'npm', status: 'ok', detail: `${pkg.name}@${newVersion}` });
-      console.log(`  ✓ Published to npm`);
-    } catch (e) {
-      distResults.push({ target: 'npm', status: 'failed', detail: e.message });
-      console.log(`  ✗ npm publish failed: ${e.message}`);
-    }
-
     // 7. GitHub Packages ... SKIPPED from private repos.
     // deploy-public.sh publishes to GitHub Packages from the public repo clone.
     // Publishing from private ties the package to the private repo, making it
@@ -2540,6 +2686,14 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
   writePackageVersion(repoPath, newVersion);
   console.log(`  \u2713 package.json -> ${newVersion}`);
 
+  // 1.25. Auto-bump sub-tool versions (Phase 5)
+  {
+    const autoBumped = autoFixSubToolVersions(repoPath);
+    if (autoBumped > 0) {
+      console.log(`  \u2713 Auto-bumped ${autoBumped} sub-tool(s)`);
+    }
+  }
+
   // 1.5. Validate sub-tool version bumps (Phase 8: error by default)
   {
     const subToolResult = validateSubToolVersions(repoPath, allowSubToolDrift);
@@ -2587,6 +2741,31 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
       console.log(`  \u2717 npm publish failed: ${e.message}`);
     }
 
+    // 5.5. Auto-publish changed sub-tools to npm (Phase 5)
+    const toolsDir = join(repoPath, 'tools');
+    if (existsSync(toolsDir)) {
+      for (const tool of readdirSync(toolsDir)) {
+        const toolPath = join(toolsDir, tool);
+        const toolPkg = join(toolPath, 'package.json');
+        if (!existsSync(toolPkg)) continue;
+        const pkg = JSON.parse(readFileSync(toolPkg, 'utf8'));
+        if (!pkg.name || pkg.private) continue;
+        try {
+          publishNpm(toolPath);
+          distResults.push({ target: 'npm', status: 'ok', detail: `${pkg.name}@${pkg.version}` });
+          console.log(`  \u2713 Published sub-tool: ${pkg.name}@${pkg.version}`);
+        } catch (e) {
+          const msg = e.message || '';
+          if (msg.includes('previously published') || msg.includes('cannot publish over')) {
+            // Already published at this version. Not an error.
+          } else {
+            distResults.push({ target: 'npm', status: 'failed', detail: `${pkg.name}: ${msg}` });
+            console.log(`  \u2717 Sub-tool ${pkg.name} publish failed: ${msg}`);
+          }
+        }
+      }
+    }
+
     // 6. GitHub prerelease on public repo (if opted in)
     if (publishReleaseNotes) {
       try {
@@ -2613,11 +2792,11 @@ export async function releasePrerelease({ repoPath, track, notes, dryRun, noPubl
   }
 
   // deploy-public: sync private -> public mirror (Phase 6)
-  // Prerelease tracks (alpha/beta) also run deploy-public so the public
-  // mirror stays current. Flagged in the bridge master plan and the
-  // release-pipeline master plan: forgetting deploy-public left the public
-  // repo stale across multiple days of alpha releases.
-  {
+  // Beta: deploy to public (testing distribution pipeline)
+  // Alpha: NEVER deploy to public (dev-only)
+  if (track === 'alpha') {
+    console.log(`  - deploy-public: skipped (alpha is dev-only, never goes to public)`);
+  } else {
     const dp = runDeployPublic(repoPath, { skip: noDeployPublic });
     if (dp.skipped) {
       if (dp.reason === 'flag') {
